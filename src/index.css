@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@theme {
+  --color-matcha: #4A5D23;
+  --color-matcha-light: #8F9779;
+  --color-matcha-dark: #2D3A15;
+  --color-pink: #F48FB1;
+  --color-pink-light: #F8BBD0;
+  --color-pink-dark: #C2185B;
+  
+  --background-image-matcha-gradient: linear-gradient(to bottom right, var(--color-matcha-dark), var(--color-matcha));
+  --background-image-magenta-gradient: linear-gradient(to bottom right, var(--color-pink-dark), var(--color-pink));
+  --background-image-pink-gradient: linear-gradient(to bottom right, var(--color-pink-light), white);
+}

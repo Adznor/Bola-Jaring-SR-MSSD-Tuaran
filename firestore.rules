@@ -1,0 +1,104 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+          (request.auth.token.email == "g-73273737@moe-dl.edu.my" && request.auth.token.email_verified == true) ||
+          (request.auth.token.email == "urusetia@mssd.tuaran.my"));
+    }
+
+    function isPengurus() {
+      return isAuthenticated() && request.auth.token.email == "pengurus@mssd.tuaran.my";
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidTeam(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             (!('managerName' in data) || (data.managerName is string && data.managerName.size() < 100)) &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() < 20)) &&
+             (!('logoUrl' in data) || (data.logoUrl is string && data.logoUrl.size() < 500)) &&
+             (!('groupId' in data) || data.groupId is string) &&
+             data.players is list && data.players.size() >= 7 && data.players.size() <= 12;
+    }
+
+    function isValidGroup(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 50;
+    }
+
+    function isValidMatch(data) {
+      return data.teamAId is string && data.teamBId is string &&
+             data.scoreA is number && data.scoreB is number &&
+             data.stage in ['group', 'knockout', 'round16', 'quarter', 'semi', 'final'] &&
+             data.status in ['upcoming', 'live', 'finished'];
+    }
+
+    function isValidTournamentInfo(data) {
+      return data.name is string && data.name.size() > 0 &&
+             data.organizer is string &&
+             data.manager is string &&
+             data.startDate is string &&
+             data.time is string &&
+             data.venue is string &&
+             (!('endDate' in data) || data.endDate is string) &&
+             (!('mapUrl' in data) || data.mapUrl is string) &&
+             (!('organizerLogoUrl' in data) || data.organizerLogoUrl is string) &&
+             (!('managerLogoUrl' in data) || data.managerLogoUrl is string) &&
+             (!('tournamentLogoUrl' in data) || data.tournamentLogoUrl is string) &&
+             (!('registrationOpen' in data) || data.registrationOpen is bool);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    // Teams
+    match /teams/{teamId} {
+      allow read: if true;
+      allow create: if (isAdmin() || isPengurus()) && isValidTeam(request.resource.data);
+      allow update: if (isAdmin() || isPengurus()) && isValidTeam(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // Groups
+    match /groups/{groupId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Matches
+    match /matches/{matchId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Tournament Info
+    match /tournamentInfo/{infoId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidTournamentInfo(request.resource.data);
+    }
+
+    // Users (for role check)
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isAdmin() || (isOwner(userId) && (request.auth.token.email == "urusetia@mssd.tuaran.my" || request.auth.token.email == "g-73273737@moe-dl.edu.my"));
+    }
+  }
+}

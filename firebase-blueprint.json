@@ -1,0 +1,104 @@
+{
+  "entities": {
+    "Team": {
+      "title": "Team",
+      "description": "A netball team participating in the tournament.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "managerName": { "type": "string" },
+        "phone": { "type": "string" },
+        "groupId": { "type": "string", "description": "ID of the group the team belongs to." },
+        "logoUrl": { "type": "string" },
+        "players": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "position": { "type": "string", "enum": ["GS", "GA", "WA", "C", "WD", "GD", "GK"] }
+            }
+          }
+        }
+      },
+      "required": ["name", "players"]
+    },
+    "Group": {
+      "title": "Group",
+      "description": "A group (Kumpulan) in the tournament.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string", "description": "e.g., Kumpulan A" }
+      },
+      "required": ["name"]
+    },
+    "Match": {
+      "title": "Match",
+      "description": "A netball match record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "court": { "type": "string", "enum": ["Gelanggang A", "Gelanggang B", "Gelanggang C", "Gelanggang D"] },
+        "teamAId": { "type": "string" },
+        "teamBId": { "type": "string" },
+        "scoreA": { "type": "number" },
+        "scoreB": { "type": "number" },
+        "stage": { "type": "string", "enum": ["group", "quarter", "semi", "final"] },
+        "groupId": { "type": "string", "description": "Only for group stage matches." },
+        "scorers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "playerName": { "type": "string" },
+              "teamId": { "type": "string" },
+              "goals": { "type": "number" }
+            }
+          }
+        }
+      },
+      "required": ["teamAId", "teamBId", "stage"]
+    },
+    "TournamentInfo": {
+      "title": "Tournament Info",
+      "description": "General information about the tournament.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "organizer": { "type": "string" },
+        "manager": { "type": "string" },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "time": { "type": "string" },
+        "venue": { "type": "string" },
+        "mapUrl": { "type": "string" },
+        "organizerLogoUrl": { "type": "string" },
+        "managerLogoUrl": { "type": "string" },
+        "registrationOpen": { "type": "boolean" }
+      },
+      "required": ["name", "organizer", "manager", "startDate", "time", "venue"]
+    }
+  },
+  "firestore": {
+    "/teams": {
+      "schema": "Team",
+      "description": "Collection of teams."
+    },
+    "/groups": {
+      "schema": "Group",
+      "description": "Collection of groups."
+    },
+    "/matches": {
+      "schema": "Match",
+      "description": "Collection of matches."
+    },
+    "/tournamentInfo": {
+      "schema": "TournamentInfo",
+      "description": "Collection of tournament information."
+    }
+  }
+}
