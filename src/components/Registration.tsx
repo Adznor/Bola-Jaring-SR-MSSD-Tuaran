@@ -17,6 +17,7 @@ export default function Registration() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [newPlayerName, setNewPlayerName] = useState('');
   const [newPlayerPos, setNewPlayerPos] = useState<Position>('C');
+  const [editingPlayerIndex, setEditingPlayerIndex] = useState<number | null>(null);
   const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
   const [notification, setNotification] = useState<{ show: boolean; message: string; type: 'success' | 'error' }>({ show: false, message: '', type: 'success' });
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; ids: string[]; message: string }>({ show: false, ids: [], message: '' });
@@ -66,17 +67,44 @@ export default function Registration() {
   };
 
   const handleAddPlayer = () => {
-    if (players.length >= 12) {
-      alert('Maksimum 12 pemain sahaja dibenarkan.');
-      return;
-    }
     if (!newPlayerName) return;
-    setPlayers([...players, { name: newPlayerName, position: newPlayerPos }]);
+
+    if (editingPlayerIndex !== null) {
+      const updatedPlayers = [...players];
+      updatedPlayers[editingPlayerIndex] = { name: newPlayerName, position: newPlayerPos };
+      setPlayers(updatedPlayers);
+      setEditingPlayerIndex(null);
+    } else {
+      if (players.length >= 12) {
+        alert('Maksimum 12 pemain sahaja dibenarkan.');
+        return;
+      }
+      setPlayers([...players, { name: newPlayerName, position: newPlayerPos }]);
+    }
     setNewPlayerName('');
+    setNewPlayerPos('C');
+  };
+
+  const handleEditPlayer = (originalIndex: number) => {
+    const player = players[originalIndex];
+    setNewPlayerName(player.name);
+    setNewPlayerPos(player.position);
+    setEditingPlayerIndex(originalIndex);
+  };
+
+  const handleCancelPlayerEdit = () => {
+    setEditingPlayerIndex(null);
+    setNewPlayerName('');
+    setNewPlayerPos('C');
   };
 
   const handleRemovePlayer = (index: number) => {
     setPlayers(players.filter((_, i) => i !== index));
+    if (editingPlayerIndex === index) {
+      handleCancelPlayerEdit();
+    } else if (editingPlayerIndex !== null && index < editingPlayerIndex) {
+      setEditingPlayerIndex(editingPlayerIndex - 1);
+    }
   };
 
   const showNotification = (message: string, type: 'success' | 'error') => {
@@ -122,6 +150,9 @@ export default function Registration() {
     setLogoUrl('');
     setPlayers([]);
     setEditingTeam(null);
+    setEditingPlayerIndex(null);
+    setNewPlayerName('');
+    setNewPlayerPos('C');
     setShowForm(false);
   };
 
@@ -416,10 +447,20 @@ export default function Registration() {
                   <button
                     type="button"
                     onClick={handleAddPlayer}
-                    className="bg-matcha-gradient text-white px-4 py-2 rounded-lg hover:opacity-90 transition-colors h-[34px] md:h-[38px] self-end text-xs md:text-sm font-bold"
+                    className={`${editingPlayerIndex !== null ? 'bg-blue-500' : 'bg-matcha-gradient'} text-white px-4 py-2 rounded-lg hover:opacity-90 transition-colors h-[34px] md:h-[38px] self-end text-xs md:text-sm font-bold flex items-center gap-2`}
                   >
-                    Tambah
+                    {editingPlayerIndex !== null ? <Save className="h-3 w-3 sm:h-4 sm:w-4" /> : null}
+                    {editingPlayerIndex !== null ? 'Simpan' : 'Tambah'}
                   </button>
+                  {editingPlayerIndex !== null && (
+                    <button
+                      type="button"
+                      onClick={handleCancelPlayerEdit}
+                      className="bg-gray-200 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors h-[34px] md:h-[38px] self-end text-xs md:text-sm font-bold"
+                    >
+                      Batal
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -430,23 +471,38 @@ export default function Registration() {
                       <th className="px-2 sm:px-4 py-2 text-left w-8">Bil</th>
                       <th className="px-2 sm:px-4 py-2 text-left">Nama</th>
                       <th className="px-2 py-2 text-center">Posisi</th>
-                      <th className="px-2 sm:px-4 py-2 text-center w-10">Aksi</th>
+                      <th className="px-2 sm:px-4 py-2 text-center w-20">Aksi</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {[...players]
+                    {players.map((p, i) => ({ ...p, originalIndex: i }))
                       .sort((a, b) => POSITION_ORDER.indexOf(a.position) - POSITION_ORDER.indexOf(b.position) || a.name.localeCompare(b.name))
                       .map((p, i) => (
-                      <tr key={i}>
+                      <tr key={p.originalIndex} className={editingPlayerIndex === p.originalIndex ? 'bg-blue-50' : ''}>
                         <td className="px-2 sm:px-4 py-2 text-gray-500">{i + 1}</td>
                         <td className="px-2 sm:px-4 py-2 font-medium truncate max-w-[80px] sm:max-w-none">{p.name}</td>
                         <td className="px-2 py-2 text-center">
                           <span className="bg-matcha-gradient text-white px-1 sm:px-2 py-0.5 rounded text-[7px] sm:text-xs font-bold">{p.position}</span>
                         </td>
                         <td className="px-2 sm:px-4 py-2 text-center">
-                          <button type="button" onClick={() => handleRemovePlayer(i)} className="text-red-400 hover:text-red-600 p-1">
-                            <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                          </button>
+                          <div className="flex items-center justify-center gap-1">
+                            <button 
+                              type="button" 
+                              onClick={() => handleEditPlayer(p.originalIndex)} 
+                              className="text-blue-400 hover:text-blue-600 p-1"
+                              title="Edit Pemain"
+                            >
+                              <Edit2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                            </button>
+                            <button 
+                              type="button" 
+                              onClick={() => handleRemovePlayer(p.originalIndex)} 
+                              className="text-red-400 hover:text-red-600 p-1"
+                              title="Padam Pemain"
+                            >
+                              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
