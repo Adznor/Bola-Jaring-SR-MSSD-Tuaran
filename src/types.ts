@@ -37,14 +37,15 @@ export interface Match {
   date: string;
   time: string;
   court: 'Gelanggang A' | 'Gelanggang B' | 'Gelanggang C' | 'Gelanggang D';
-  teamAId: string;
-  teamBId: string;
+  teamAId?: string;
+  teamBId?: string;
   scoreA: number;
   scoreB: number;
   stage: MatchStage;
   status: MatchStatus;
   groupId?: string;
   scorers: Scorer[];
+  placeholderLabel?: string;
 }
 
 export interface TournamentLink {
@@ -68,6 +69,12 @@ export interface TournamentInfo {
   registrationOpen?: boolean;
   links?: TournamentLink[];
   footerText?: string;
+  matchDuration?: number;
+  breakDuration?: number;
+  dailyStartTime?: string;
+  dailyEndTime?: string;
+  tournamentDays?: number;
+  tournamentDates?: string[];
 }
 
 export interface TeamStats {

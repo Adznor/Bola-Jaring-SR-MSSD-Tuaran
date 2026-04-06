@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { Team, Player, Position, TournamentInfo, POSITION_ORDER } from '../types';
-import { Plus, Trash2, Edit2, X, Save, UserPlus, Users, AlertCircle, CheckCircle, Zap } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, Save, UserPlus, Users, AlertCircle, CheckCircle, Zap, FileUp, Download } from 'lucide-react';
+import Papa from 'papaparse';
 
 const POSITIONS: Position[] = ['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'];
 
@@ -24,6 +25,7 @@ export default function Registration() {
   const [tournamentInfo, setTournamentInfo] = useState<TournamentInfo | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [showTeamDetails, setShowTeamDetails] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     const unsubTeams = onSnapshot(collection(db, 'teams'), (snapshot) => {
@@ -202,6 +204,100 @@ export default function Registration() {
     );
   };
 
+  const handleBulkUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const data = results.data as any[];
+        const teamsMap = new Map<string, any>();
+        const groupsMap = new Map<string, string>();
+
+        try {
+          // Fetch existing groups
+          const groupsSnap = await getDocs(collection(db, 'groups'));
+          groupsSnap.forEach(doc => groupsMap.set(doc.data().name, doc.id));
+
+          for (const row of data) {
+            const teamName = row['Nama Pasukan']?.trim();
+            const managerName = row['Nama Pengurus']?.trim();
+            const phone = row['No Telefon']?.trim();
+            const playerName = row['Nama Pemain']?.trim();
+            const position = row['Posisi']?.trim() as Position;
+            const groupName = row['Kumpulan']?.trim();
+
+            if (!teamName || !playerName) continue;
+
+            if (!teamsMap.has(teamName)) {
+              teamsMap.set(teamName, {
+                name: teamName,
+                managerName: managerName || '',
+                phone: phone || '',
+                players: [],
+                groupName: groupName || '',
+                createdAt: Date.now()
+              });
+            }
+
+            const team = teamsMap.get(teamName);
+            if (team.players.length < 12) {
+              team.players.push({ name: playerName, position: position || 'C' });
+            }
+          }
+
+          const batch = writeBatch(db);
+          for (const [name, teamData] of teamsMap) {
+            let groupId = '';
+            if (teamData.groupName) {
+              if (groupsMap.has(teamData.groupName)) {
+                groupId = groupsMap.get(teamData.groupName)!;
+              } else {
+                // Create group if not exists
+                const groupRef = await addDoc(collection(db, 'groups'), { name: teamData.groupName });
+                groupId = groupRef.id;
+                groupsMap.set(teamData.groupName, groupId);
+              }
+            }
+
+            const { groupName, ...finalTeamData } = teamData;
+            const newTeamRef = doc(collection(db, 'teams'));
+            batch.set(newTeamRef, { ...finalTeamData, groupId });
+          }
+          await batch.commit();
+          showNotification('Muat naik pukal berjaya!', 'success');
+        } catch (err) {
+          console.error('Error bulk uploading:', err);
+          showNotification('Ralat semasa muat naik pukal.', 'error');
+        } finally {
+          setIsUploading(false);
+          if (e.target) e.target.value = '';
+        }
+      },
+      error: (err) => {
+        console.error('CSV parse error:', err);
+        showNotification('Ralat semasa membaca fail CSV.', 'error');
+        setIsUploading(false);
+      }
+    });
+  };
+
+  const downloadTemplate = () => {
+    const csvContent = "Nama Pasukan,Nama Pengurus,No Telefon,Nama Pemain,Posisi,Kumpulan\nPasukan A,Ali,0123456789,Pemain 1,GS,A\nPasukan A,Ali,0123456789,Pemain 2,GA,A";
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "template_pendaftaran.csv");
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 sm:gap-4">
@@ -228,13 +324,32 @@ export default function Registration() {
             </button>
           )}
           {!showForm && canRegister && isRegistrationOpen && (
-            <button
-              onClick={() => setShowForm(true)}
-              className="flex-1 md:flex-none bg-matcha-gradient hover:opacity-90 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg flex items-center justify-center gap-1.5 sm:gap-2 transition-all shadow-sm text-[10px] sm:text-sm"
-            >
-              <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span>Daftar Pasukan</span>
-            </button>
+            <div className="flex gap-2">
+              {isUrusetia && (
+                <>
+                  <button
+                    onClick={downloadTemplate}
+                    className="flex-1 md:flex-none bg-blue-50 text-blue-600 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg flex items-center justify-center gap-1.5 sm:gap-2 hover:bg-blue-100 transition-all shadow-sm text-[10px] sm:text-sm font-bold"
+                    title="Muat Turun Template CSV"
+                  >
+                    <Download className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">Template</span>
+                  </button>
+                  <label className="flex-1 md:flex-none bg-matcha/10 text-matcha px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg flex items-center justify-center gap-1.5 sm:gap-2 hover:bg-matcha/20 transition-all shadow-sm text-[10px] sm:text-sm font-bold cursor-pointer">
+                    <FileUp className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span>{isUploading ? 'Memproses...' : 'Muat Naik CSV'}</span>
+                    <input type="file" accept=".csv" onChange={handleBulkUpload} className="hidden" disabled={isUploading} />
+                  </label>
+                </>
+              )}
+              <button
+                onClick={() => setShowForm(true)}
+                className="flex-1 md:flex-none bg-matcha-gradient hover:opacity-90 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg flex items-center justify-center gap-1.5 sm:gap-2 transition-all shadow-sm text-[10px] sm:text-sm"
+              >
+                <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span>Daftar Pasukan</span>
+              </button>
+            </div>
           )}
         </div>
       </div>

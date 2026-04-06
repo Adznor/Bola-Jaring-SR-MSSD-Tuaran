@@ -12,6 +12,7 @@ import MatchEntry from './components/MatchEntry';
 import Stats from './components/Stats';
 import TournamentInfo from './components/TournamentInfo';
 import TournamentManagement from './components/TournamentManagement';
+import AutoScheduler from './components/AutoScheduler';
 import Top12 from './components/Top12';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -51,6 +52,7 @@ export default function App() {
               <Route index element={<Navigate to="registration" />} />
               <Route path="registration" element={<Registration />} />
               <Route path="groups" element={<GroupManagement />} />
+              <Route path="auto-schedule" element={<AutoScheduler />} />
               <Route path="matches" element={<MatchEntry />} />
               <Route path="top12" element={<Top12 />} />
               <Route path="tournament-info" element={<TournamentManagement />} />

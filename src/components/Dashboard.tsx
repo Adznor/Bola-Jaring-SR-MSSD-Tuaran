@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Users, LayoutGrid, CalendarDays, Settings, UserCircle, Trophy } from 'lucide-react';
+import { Users, LayoutGrid, CalendarDays, Settings, UserCircle, Trophy, Zap } from 'lucide-react';
 import { auth } from '../firebase';
 
 export default function Dashboard() {
@@ -10,6 +10,7 @@ export default function Dashboard() {
   const urusetiaTabs = [
     { name: 'Pendaftaran Pasukan', path: '/admin/registration', icon: Users },
     { name: 'Pengurusan Kumpulan', path: '/admin/groups', icon: LayoutGrid },
+    { name: 'Penjadualan Automatik', path: '/admin/auto-schedule', icon: Zap },
     { name: 'Perlawanan & Keputusan', path: '/admin/matches', icon: CalendarDays },
     { name: 'Catatan', path: '/admin/top12', icon: Trophy },
     { name: 'Tetapan', path: '/admin/tournament-info', icon: Settings },

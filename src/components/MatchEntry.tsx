@@ -40,6 +40,7 @@ export default function MatchEntry() {
   const [stage, setStage] = useState<MatchStage>('group');
   const [status, setStatus] = useState<MatchStatus>('upcoming');
   const [formGroupId, setFormGroupId] = useState<string>('');
+  const [placeholderLabel, setPlaceholderLabel] = useState('');
   const [scorers, setScorers] = useState<Scorer[]>([]);
   const [newScorerNameA, setNewScorerNameA] = useState('');
   const [newScorerGoalsA, setNewScorerGoalsA] = useState(1);
@@ -129,6 +130,7 @@ export default function MatchEntry() {
       stage,
       status,
       groupId: stage === 'group' ? formGroupId || null : null,
+      placeholderLabel: placeholderLabel || null,
       scorers,
     };
 
@@ -167,6 +169,7 @@ export default function MatchEntry() {
     setStage('group');
     setStatus('upcoming');
     setFormGroupId('');
+    setPlaceholderLabel('');
     setScorers([]);
     setEditingMatch(null);
     setShowForm(false);
@@ -186,6 +189,7 @@ export default function MatchEntry() {
     setStage(match.stage);
     setStatus(match.status || 'upcoming');
     setFormGroupId(match.groupId || '');
+    setPlaceholderLabel(match.placeholderLabel || '');
     setScorers(match.scorers || []);
     setShowForm(true);
   };
@@ -269,8 +273,8 @@ export default function MatchEntry() {
 
     const groupMatches = matches.filter(m => m.stage === 'group' && (m.status === 'live' || m.status === 'finished'));
     for (const match of groupMatches) {
-      const teamA = statsMap.get(match.teamAId);
-      const teamB = statsMap.get(match.teamBId);
+      const teamA = match.teamAId ? statsMap.get(match.teamAId) : null;
+      const teamB = match.teamBId ? statsMap.get(match.teamBId) : null;
       if (teamA && teamB) {
         teamA.played++;
         teamB.played++;
@@ -455,6 +459,11 @@ export default function MatchEntry() {
               <span className="bg-matcha/10 text-matcha-dark px-1.5 py-0.5 rounded text-[8px] md:text-[10px] font-black uppercase border border-matcha/20">
                 {match.stage === 'group' ? (groups.find(g => g.id === match.groupId)?.name || 'KUMPULAN') : STAGES.find(s => s.value === match.stage)?.label}
               </span>
+              {match.placeholderLabel && (
+                <span className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[8px] md:text-[10px] font-black uppercase border border-blue-100">
+                  {match.placeholderLabel}
+                </span>
+              )}
               <div className="flex items-center gap-1 text-[8px] md:text-[10px] text-gray-500 font-bold">
                 <CalendarDays className="h-3 w-3" />
                 <span>{match.date || 'TBA'}</span>
@@ -485,20 +494,20 @@ export default function MatchEntry() {
         <div className="flex items-center justify-between gap-2 md:gap-4">
           <div className="flex-1 text-center">
             <div className="flex flex-col items-center gap-1">
-              {match.stage === 'group' && (
+              {match.stage === 'group' && match.teamAId && (
                 <span className="text-[8px] md:text-[10px] font-black text-matcha uppercase tracking-tighter">
                   {getTeamCode(match.teamAId, match.groupId)}
                 </span>
               )}
               <div className="w-8 h-8 md:w-12 md:h-12 bg-white rounded-lg border border-gray-100 p-1 flex items-center justify-center shrink-0">
-                {getTeamLogo(match.teamAId) ? (
+                {match.teamAId && getTeamLogo(match.teamAId) ? (
                   <img src={getTeamLogo(match.teamAId)} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                 ) : (
                   <Trophy className="h-4 w-4 md:h-6 md:w-6 text-gray-200" />
                 )}
               </div>
               <div className="font-bold text-gray-800 text-[10px] md:text-sm leading-tight break-words line-clamp-2 h-8 md:h-10 flex items-center justify-center">
-                {getTeamName(match.teamAId)}
+                {match.teamAId ? getTeamName(match.teamAId) : 'TBA'}
               </div>
             </div>
           </div>
@@ -513,20 +522,20 @@ export default function MatchEntry() {
 
           <div className="flex-1 text-center">
             <div className="flex flex-col items-center gap-1">
-              {match.stage === 'group' && (
+              {match.stage === 'group' && match.teamBId && (
                 <span className="text-[8px] md:text-[10px] font-black text-matcha uppercase tracking-tighter">
                   {getTeamCode(match.teamBId, match.groupId)}
                 </span>
               )}
               <div className="w-8 h-8 md:w-12 md:h-12 bg-white rounded-lg border border-gray-100 p-1 flex items-center justify-center shrink-0">
-                {getTeamLogo(match.teamBId) ? (
+                {match.teamBId && getTeamLogo(match.teamBId) ? (
                   <img src={getTeamLogo(match.teamBId)} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                 ) : (
                   <Trophy className="h-4 w-4 md:h-6 md:w-6 text-gray-200" />
                 )}
               </div>
               <div className="font-bold text-gray-800 text-[10px] md:text-sm leading-tight break-words line-clamp-2 h-8 md:h-10 flex items-center justify-center">
-                {getTeamName(match.teamBId)}
+                {match.teamBId ? getTeamName(match.teamBId) : 'TBA'}
               </div>
             </div>
           </div>
@@ -822,6 +831,19 @@ export default function MatchEntry() {
                       </div>
                     </div>
                   </div>
+
+                  {stage !== 'group' && (
+                    <div className="space-y-2">
+                      <label className="block text-[10px] md:text-sm font-bold text-gray-400 uppercase tracking-widest mb-1">Label Placeholder (cth: Pemenang QF1)</label>
+                      <input 
+                        type="text" 
+                        value={placeholderLabel} 
+                        onChange={(e) => setPlaceholderLabel(e.target.value)} 
+                        placeholder="Masukkan label jika pasukan belum diketahui"
+                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm focus:ring-2 focus:ring-magenta focus:border-transparent outline-none" 
+                      />
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 bg-pink-gradient p-4 md:p-6 rounded-2xl border border-pink-light">
                     <div className="space-y-3 md:space-y-4">

@@ -23,6 +23,12 @@ export default function TournamentManagement() {
   const [managerLogoUrl, setManagerLogoUrl] = useState('');
   const [tournamentLogoUrl, setTournamentLogoUrl] = useState('');
   const [footerText, setFooterText] = useState('');
+  const [matchDuration, setMatchDuration] = useState(20);
+  const [breakDuration, setBreakDuration] = useState(5);
+  const [dailyStartTime, setDailyStartTime] = useState('08:00');
+  const [dailyEndTime, setDailyEndTime] = useState('17:00');
+  const [tournamentDays, setTournamentDays] = useState(2);
+  const [tournamentDates, setTournamentDates] = useState<string[]>([]);
   const [links, setLinks] = useState<TournamentLink[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
@@ -65,6 +71,12 @@ export default function TournamentManagement() {
         setManagerLogoUrl(data.managerLogoUrl || '');
         setTournamentLogoUrl(data.tournamentLogoUrl || '');
         setFooterText(data.footerText || '"Majulah Sukan Untuk Negara - MSSD Tuaran"');
+        setMatchDuration(data.matchDuration || 20);
+        setBreakDuration(data.breakDuration || 5);
+        setDailyStartTime(data.dailyStartTime || '08:00');
+        setDailyEndTime(data.dailyEndTime || '17:00');
+        setTournamentDays(data.tournamentDays || 2);
+        setTournamentDates(data.tournamentDates || []);
         setLinks(data.links || []);
       } else {
         // Default values as requested by user
@@ -372,6 +384,12 @@ export default function TournamentManagement() {
       managerLogoUrl,
       tournamentLogoUrl,
       footerText,
+      matchDuration,
+      breakDuration,
+      dailyStartTime,
+      dailyEndTime,
+      tournamentDays,
+      tournamentDates,
       links
     };
 
@@ -616,6 +634,88 @@ export default function TournamentManagement() {
                   placeholder="https://www.google.com/maps/embed?..."
                   className="w-full px-4 py-2.5 md:py-3 bg-gray-50 border border-gray-200 rounded-xl md:rounded-2xl text-sm md:text-base focus:ring-2 focus:ring-matcha focus:border-transparent outline-none transition-all"
                 />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-blue-gradient p-4 md:p-6 rounded-xl md:rounded-2xl border border-blue-100 space-y-6">
+            <h3 className="text-sm md:text-base font-black text-blue-900 flex items-center gap-2 uppercase tracking-widest">
+              <Clock className="h-4 w-4 md:h-5 md:w-5" />
+              Parameter Penjadualan Automatik
+            </h3>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+              <div className="space-y-1 md:space-y-2">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Tempoh Perlawanan (Minit)</label>
+                <input
+                  type="number"
+                  value={matchDuration}
+                  onChange={(e) => setMatchDuration(parseInt(e.target.value))}
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-matcha"
+                />
+              </div>
+              <div className="space-y-1 md:space-y-2">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Masa Rehat (Minit)</label>
+                <input
+                  type="number"
+                  value={breakDuration}
+                  onChange={(e) => setBreakDuration(parseInt(e.target.value))}
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-matcha"
+                />
+              </div>
+              <div className="space-y-1 md:space-y-2">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Bilangan Hari</label>
+                <input
+                  type="number"
+                  value={tournamentDays}
+                  onChange={(e) => {
+                    const days = parseInt(e.target.value);
+                    setTournamentDays(days);
+                    const newDates = [...tournamentDates];
+                    while (newDates.length < days) newDates.push('');
+                    setTournamentDates(newDates.slice(0, days));
+                  }}
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-matcha"
+                />
+              </div>
+              <div className="space-y-1 md:space-y-2">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Masa Mula Harian</label>
+                <input
+                  type="time"
+                  value={dailyStartTime}
+                  onChange={(e) => setDailyStartTime(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-matcha"
+                />
+              </div>
+              <div className="space-y-1 md:space-y-2">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Masa Tamat Harian</label>
+                <input
+                  type="time"
+                  value={dailyEndTime}
+                  onChange={(e) => setDailyEndTime(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-matcha"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Tarikh Kejohanan</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {Array.from({ length: tournamentDays }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-gray-400 w-12">Hari {i + 1}:</span>
+                    <input
+                      type="date"
+                      value={tournamentDates[i] || ''}
+                      onChange={(e) => {
+                        const newDates = [...tournamentDates];
+                        newDates[i] = e.target.value;
+                        setTournamentDates(newDates);
+                      }}
+                      className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-matcha"
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           </div>
