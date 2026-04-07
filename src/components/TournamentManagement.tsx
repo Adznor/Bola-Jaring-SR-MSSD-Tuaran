@@ -218,7 +218,6 @@ export default function TournamentManagement() {
 
     // 4. Peringkat Kalah Mati
     const knockoutStages = [
-      { id: 'knockout', label: 'Pusingan 12' },
       { id: 'quarter', label: 'Suku Akhir' },
       { id: 'semi', label: 'Separuh Akhir' },
       { id: 'third_place', label: 'Penentuan Tempat Ke-3' },

@@ -12,7 +12,7 @@ export default function Dashboard() {
     { name: 'Pengurusan Kumpulan', path: '/admin/groups', icon: LayoutGrid },
     { name: 'Penjadualan Automatik', path: '/admin/auto-schedule', icon: Zap },
     { name: 'Perlawanan & Keputusan', path: '/admin/matches', icon: CalendarDays },
-    { name: 'Catatan', path: '/admin/top12', icon: Trophy },
+    { name: 'Catatan', path: '/admin/top8', icon: Trophy },
     { name: 'Tetapan', path: '/admin/tournament-info', icon: Settings },
   ];
 

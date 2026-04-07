@@ -181,7 +181,6 @@ export default function PublicView() {
     const thirdPlaceMatch = matches.find(m => m.stage === 'third_place' && m.status === 'finished');
     const semiMatches = matches.filter(m => m.stage === 'semi' && m.status === 'finished');
     const quarterMatches = matches.filter(m => m.stage === 'quarter' && m.status === 'finished');
-    const knockoutMatches = matches.filter(m => m.stage === 'knockout' && m.status === 'finished');
 
     const johanId = finalMatch.scoreA > finalMatch.scoreB ? finalMatch.teamAId : finalMatch.teamBId;
     const naibJohanId = finalMatch.scoreA > finalMatch.scoreB ? finalMatch.teamBId : finalMatch.teamAId;
@@ -222,7 +221,6 @@ export default function PublicView() {
         // First, check how far they got
         const getStageScore = (teamId: string) => {
           if (quarterMatches.some(m => m.teamAId === teamId || m.teamBId === teamId)) return 3; // Reached Quarters
-          if (knockoutMatches.some(m => m.teamAId === teamId || m.teamBId === teamId)) return 2; // Reached Round of 12
           return 1; // Group Stage only
         };
         
@@ -297,14 +295,13 @@ export default function PublicView() {
         return matchesSearch && matchesDate && matchesStage && matchesStatus && matchesTime;
       })
       .sort((a, b) => {
-        // 1. Stage order: final > semi > third_place > quarter > knockout > group
+        // 1. Stage order: final > semi > third_place > quarter > group
         const stageOrder: Record<MatchStage, number> = {
           final: 0,
           semi: 1,
           third_place: 2,
           quarter: 3,
-          knockout: 4,
-          group: 5
+          group: 4
         };
         if (stageOrder[a.stage] !== stageOrder[b.stage]) {
           return stageOrder[a.stage] - stageOrder[b.stage];
@@ -331,7 +328,6 @@ export default function PublicView() {
   const stages = [
     { value: 'group', label: 'Peringkat Kumpulan' },
     { value: 'knockout_all', label: 'Peringkat Kalah Singkir' },
-    { value: 'knockout', label: 'Pusingan 12' },
     { value: 'quarter', label: 'Suku Akhir' },
     { value: 'semi', label: 'Separuh Akhir' },
     { value: 'third_place', label: 'Penentuan Tempat Ke-3' },

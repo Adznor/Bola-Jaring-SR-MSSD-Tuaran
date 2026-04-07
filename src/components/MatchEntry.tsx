@@ -2,12 +2,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Team, Match, MatchStage, MatchStatus, Scorer, Group, POSITION_ORDER, TeamStats } from '../types';
-import { Plus, Trash2, CalendarDays, Trophy, Save, X, UserPlus, Zap, Clock, Play, CheckCircle, LayoutGrid } from 'lucide-react';
+import { Plus, Trash2, CalendarDays, Trophy, Save, X, UserPlus, Zap, Clock, Play, CheckCircle, LayoutGrid, Search, Filter } from 'lucide-react';
 
 const COURTS = ['Gelanggang A', 'Gelanggang B', 'Gelanggang C', 'Gelanggang D'];
 const STAGES: { value: MatchStage; label: string }[] = [
   { value: 'group', label: 'Peringkat Kumpulan' },
-  { value: 'knockout', label: 'Pusingan 12' },
   { value: 'quarter', label: 'Suku Akhir' },
   { value: 'semi', label: 'Separuh Akhir' },
   { value: 'third_place', label: 'Penentuan Tempat Ke-3' },
@@ -24,11 +23,17 @@ export default function MatchEntry() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
-  const [activeGroupTab, setActiveGroupTab] = useState<string>('all');
   const [selectedMatches, setSelectedMatches] = useState<string[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingMatch, setEditingMatch] = useState<Match | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; ids: string[]; message: string }>({ show: false, ids: [], message: '' });
+
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDate, setSelectedDate] = useState('all');
+  const [selectedStageFilter, setSelectedStageFilter] = useState('all');
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState('all');
+  const [selectedTimeFilter, setSelectedTimeFilter] = useState('all');
 
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
@@ -309,7 +314,7 @@ export default function MatchEntry() {
       if (b.points !== a.points) return b.points - a.points;
       if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
       return b.goalsFor - a.goalsFor;
-    }).slice(0, 12);
+    }).slice(0, 8); // Top 8 for Quarter Finals
   }, [teams, matches]);
 
   const getFilteredTeams = (currentStage: MatchStage, currentTeamId: string, otherTeamId: string) => {
@@ -322,23 +327,9 @@ export default function MatchEntry() {
       .filter(m => m.stage === currentStage && m.id !== editingMatch?.id)
       .flatMap(m => [m.teamAId, m.teamBId]);
 
-    if (currentStage === 'knockout') {
-      const ranked5to12 = top12Teams.slice(4, 12).map(t => t.teamId);
-      return teams.filter(t => ranked5to12.includes(t.id) && (!assignedTeams.includes(t.id) || t.id === currentTeamId));
-    }
-
     if (currentStage === 'quarter') {
-      const knockoutMatches = matches.filter(m => m.stage === 'knockout');
-      const allKnockoutFinished = knockoutMatches.length > 0 && knockoutMatches.every(m => m.status === 'finished');
-      if (!allKnockoutFinished) return [];
-
-      const ranked1to4 = top12Teams.slice(0, 4).map(t => t.teamId);
-      const knockoutWinners = knockoutMatches
-        .filter(m => m.status === 'finished')
-        .map(m => m.scoreA > m.scoreB ? m.teamAId : m.teamBId);
-      
-      const allowedTeams = [...ranked1to4, ...knockoutWinners];
-      return teams.filter(t => allowedTeams.includes(t.id) && (!assignedTeams.includes(t.id) || t.id === currentTeamId));
+      const ranked1to8 = top12Teams.map(t => t.teamId);
+      return teams.filter(t => ranked1to8.includes(t.id) && (!assignedTeams.includes(t.id) || t.id === currentTeamId));
     }
 
     if (currentStage === 'semi') {
@@ -394,44 +385,83 @@ export default function MatchEntry() {
     return teams;
   };
 
-  const filteredMatches = matches
-    .filter(m => {
-      if (activeGroupTab === 'all') return true;
-      if (activeGroupTab === 'group') return m.stage === 'group';
-      if (activeGroupTab === 'knockout') return m.stage !== 'group';
-      if (STAGES.some(s => s.value === activeGroupTab)) return m.stage === activeGroupTab;
-      return m.groupId === activeGroupTab;
-    })
-    .sort((a, b) => {
-      // 1. Stage order: final > semi > third_place > quarter > knockout > group
-      const stageOrder: Record<MatchStage, number> = {
-        final: 0,
-        semi: 1,
-        third_place: 2,
-        quarter: 3,
-        knockout: 4,
-        group: 5
-      };
-      if (stageOrder[a.stage] !== stageOrder[b.stage]) {
-        return stageOrder[a.stage] - stageOrder[b.stage];
-      }
+  const uniqueDates = useMemo(() => {
+    const dates = new Set(matches.map(m => m.date).filter(Boolean));
+    return Array.from(dates).sort();
+  }, [matches]);
 
-      // 2. Status order: live > upcoming > finished
-      const statusOrder: Record<MatchStatus, number> = { live: 0, upcoming: 1, finished: 2 };
-      const statusA = a.status || 'upcoming';
-      const statusB = b.status || 'upcoming';
-      if (statusOrder[statusA] !== statusOrder[statusB]) {
-        return statusOrder[statusA] - statusOrder[statusB];
-      }
+  const uniqueTimes = useMemo(() => {
+    const times = new Set(matches.map(m => m.time).filter(Boolean));
+    return Array.from(times).sort();
+  }, [matches]);
 
-      // 3. Date order: newest first
-      if (a.date !== b.date) {
-        return (b.date || '').localeCompare(a.date || '');
-      }
+  const filteredMatches = useMemo(() => {
+    return matches
+      .filter(match => {
+        const teamAName = getTeamName(match.teamAId).toLowerCase();
+        const teamBName = getTeamName(match.teamBId).toLowerCase();
+        const matchesSearch = teamAName.includes(searchTerm.toLowerCase()) || teamBName.includes(searchTerm.toLowerCase());
+        const matchesDate = selectedDate === 'all' || match.date === selectedDate;
+        
+        let matchesStage = selectedStageFilter === 'all';
+        if (selectedStageFilter === 'Peringkat Kumpulan') {
+          matchesStage = match.stage === 'group';
+        } else if (selectedStageFilter === 'Peringkat Kalah Singkir') {
+          matchesStage = match.stage !== 'group';
+        } else if (!matchesStage) {
+          matchesStage = match.stage === selectedStageFilter || 
+                         {
+                           group: 'Peringkat Kumpulan',
+                           quarter: 'Suku Akhir',
+                           semi: 'Separuh Akhir',
+                           third_place: 'Penentuan Tempat Ke-3',
+                           final: 'Akhir'
+                         }[match.stage] === selectedStageFilter;
+        }
 
-      // 4. Time order: newest first
-      return (b.time || '').localeCompare(a.time || '');
-    });
+        const matchesStatus = selectedStatusFilter === 'all' || (match.status || 'upcoming') === selectedStatusFilter;
+        const matchesTime = selectedTimeFilter === 'all' || match.time === selectedTimeFilter;
+        return matchesSearch && matchesDate && matchesStage && matchesStatus && matchesTime;
+      })
+      .sort((a, b) => {
+        // 1. Stage order: final > semi > third_place > quarter > group
+        const stageOrder: Record<MatchStage, number> = {
+          final: 0,
+          semi: 1,
+          third_place: 2,
+          quarter: 3,
+          group: 4
+        };
+        if (stageOrder[a.stage] !== stageOrder[b.stage]) {
+          return stageOrder[a.stage] - stageOrder[b.stage];
+        }
+
+        // 2. Status order: live > upcoming > finished
+        const statusOrder: Record<MatchStatus, number> = { live: 0, upcoming: 1, finished: 2 };
+        const statusA = a.status || 'upcoming';
+        const statusB = b.status || 'upcoming';
+        if (statusOrder[statusA] !== statusOrder[statusB]) {
+          return statusOrder[statusA] - statusOrder[statusB];
+        }
+
+        // 3. Date order: newest first
+        if (a.date !== b.date) {
+          return (b.date || '').localeCompare(a.date || '');
+        }
+
+        // 4. Time order: newest first
+        return (b.time || '').localeCompare(a.time || '');
+      });
+  }, [matches, searchTerm, selectedDate, selectedStageFilter, selectedStatusFilter, selectedTimeFilter, teams]);
+
+  const filterStages = [
+    { value: 'group', label: 'Peringkat Kumpulan' },
+    { value: 'knockout_all', label: 'Peringkat Kalah Singkir' },
+    { value: 'quarter', label: 'Suku Akhir' },
+    { value: 'semi', label: 'Separuh Akhir' },
+    { value: 'third_place', label: 'Penentuan Tempat Ke-3' },
+    { value: 'final', label: 'Akhir' }
+  ];
 
   function MatchCard({ match }: { match: Match }) {
     const isSelected = selectedMatches.includes(match.id);
@@ -670,61 +700,118 @@ export default function MatchEntry() {
             <CalendarDays className="h-5 w-5 text-matcha" />
             Jadual & Keputusan
           </h3>
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-2 bg-magenta-gradient text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:shadow-lg transition-all shadow-md"
+          >
+            <Plus className="h-4 w-4" />
+            Tambah Perlawanan
+          </button>
         </div>
 
-      {/* Group Tabs */}
-      <div className="flex overflow-x-auto scrollbar-hide gap-2 border-b border-pink-light pb-4 -mx-4 px-4 md:mx-0 md:px-0">
-        <button
-          onClick={() => setActiveGroupTab('all')}
-          className={`whitespace-nowrap px-4 py-2 rounded-full text-xs md:text-sm font-bold transition-all ${
-            activeGroupTab === 'all' ? 'bg-magenta-gradient text-white shadow-md' : 'bg-white text-gray-500 hover:bg-magenta/10'
-          }`}
-        >
-          Semua
-        </button>
-        <button
-          onClick={() => setActiveGroupTab('group')}
-          className={`whitespace-nowrap px-4 py-2 rounded-full text-xs md:text-sm font-bold transition-all ${
-            activeGroupTab === 'group' ? 'bg-magenta-gradient text-white shadow-md' : 'bg-white text-gray-500 hover:bg-magenta/10'
-          }`}
-        >
-          Peringkat Kumpulan
-        </button>
-        <button
-          onClick={() => setActiveGroupTab('knockout')}
-          className={`whitespace-nowrap px-4 py-2 rounded-full text-xs md:text-sm font-bold transition-all ${
-            activeGroupTab === 'knockout' ? 'bg-magenta-gradient text-white shadow-md' : 'bg-white text-gray-500 hover:bg-magenta/10'
-          }`}
-        >
-          Peringkat Kalah Singkir
-        </button>
-        <div className="w-px h-8 bg-pink-light mx-2 shrink-0 self-center"></div>
-        {groups.map(group => (
-          <button
-            key={group.id}
-            onClick={() => setActiveGroupTab(group.id)}
-            className={`whitespace-nowrap px-4 py-2 rounded-full text-xs md:text-sm font-bold transition-all ${
-              activeGroupTab === group.id ? 'bg-magenta-gradient text-white shadow-md' : 'bg-white text-gray-500 hover:bg-magenta/10'
-            }`}
-          >
-            {group.name}
-          </button>
-        ))}
-        <div className="w-px h-8 bg-pink-light mx-2 shrink-0 self-center"></div>
-        {STAGES.filter(s => s.value !== 'group').map(s => (
-          <button
-            key={s.value}
-            onClick={() => setActiveGroupTab(s.value)}
-            className={`whitespace-nowrap px-4 py-2 rounded-full text-xs md:text-sm font-bold transition-all ${
-              activeGroupTab === s.value ? 'bg-magenta-gradient text-white shadow-md' : 'bg-white text-gray-500 hover:bg-magenta/10'
-            }`}
-          >
-            {s.label}
-          </button>
-        ))}
-      </div>
+        {/* Filter Bar */}
+        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-pink-light space-y-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Cari pasukan..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-10 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-matcha focus:border-transparent outline-none transition-all"
+              />
+              {searchTerm && (
+                <button 
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            
+            <div className="flex flex-wrap gap-2 sm:gap-4">
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
+                <CalendarDays className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
+                <select
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
+                >
+                  <option value="all">Semua Tarikh</option>
+                  {uniqueDates.map(date => (
+                    <option key={date} value={date}>{date}</option>
+                  ))}
+                </select>
+              </div>
 
-      <div className="flex justify-end">
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
+                <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
+                <select
+                  value={selectedTimeFilter}
+                  onChange={(e) => setSelectedTimeFilter(e.target.value)}
+                  className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
+                >
+                  <option value="all">Semua Masa</option>
+                  {uniqueTimes.map(time => (
+                    <option key={time} value={time}>{time}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
+                <Play className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
+                <select
+                  value={selectedStatusFilter}
+                  onChange={(e) => setSelectedStatusFilter(e.target.value)}
+                  className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
+                >
+                  <option value="all">Semua Status</option>
+                  {STATUSES.map(status => (
+                    <option key={status.value} value={status.value}>{status.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
+                <Filter className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
+                <select
+                  value={selectedStageFilter}
+                  onChange={(e) => setSelectedStageFilter(e.target.value)}
+                  className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
+                >
+                  <option value="all">Semua Peringkat</option>
+                  {filterStages.map(stage => (
+                    <option key={stage.value} value={stage.label}>{stage.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          {(searchTerm || selectedDate !== 'all' || selectedStageFilter !== 'all' || selectedStatusFilter !== 'all' || selectedTimeFilter !== 'all') && (
+            <div className="flex justify-between items-center pt-2 border-t border-gray-50">
+              <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">
+                Menunjukkan {filteredMatches.length} perlawanan
+              </p>
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setSelectedDate('all');
+                  setSelectedStageFilter('all');
+                  setSelectedStatusFilter('all');
+                  setSelectedTimeFilter('all');
+                }}
+                className="text-xs text-matcha font-bold hover:underline"
+              >
+                Kosongkan Penapis
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end">
         {selectedMatches.length > 0 && (
           <button
             onClick={handleDeleteSelected}
@@ -942,14 +1029,14 @@ export default function MatchEntry() {
       )}
 
       <div className="space-y-10">
-        {(activeGroupTab === 'all' || activeGroupTab === 'group' || groups.some(g => g.id === activeGroupTab)) && (
+        {(selectedStageFilter === 'all' || selectedStageFilter === 'group') && (
           <div className="space-y-4">
             <div className="flex justify-between items-center border-b border-pink-light pb-2">
               <h4 className="font-black text-magenta-dark uppercase tracking-widest text-sm flex items-center gap-2">
                 <Trophy className="h-5 w-5" /> Peringkat Kumpulan
               </h4>
               <button 
-                onClick={() => { setStage('group'); setShowForm(true); setEditingMatch(null); if (activeGroupTab !== 'all' && activeGroupTab !== 'group') setFormGroupId(activeGroupTab); }}
+                onClick={() => { setStage('group'); setShowForm(true); setEditingMatch(null); }}
                 className="text-xs bg-magenta-gradient text-white hover:opacity-90 px-4 py-2 rounded-full transition-all flex items-center gap-1 font-black uppercase tracking-widest shadow-md"
               >
                 <Plus className="h-4 w-4" /> Tambah Perlawanan
@@ -964,7 +1051,7 @@ export default function MatchEntry() {
           </div>
         )}
 
-        {(activeGroupTab === 'all' || activeGroupTab === 'knockout' || STAGES.filter(s => s.value !== 'group').some(s => s.value === activeGroupTab)) && (
+        {(selectedStageFilter === 'all' || selectedStageFilter === 'knockout_all' || STAGES.filter(s => s.value !== 'group').some(s => s.value === selectedStageFilter)) && (
           <div className="space-y-4">
             <div className="flex justify-between items-center border-b border-pink-light pb-2">
               <h4 className="font-black text-magenta-dark uppercase tracking-widest text-sm flex items-center gap-2">
@@ -972,9 +1059,9 @@ export default function MatchEntry() {
               </h4>
               <button 
                 onClick={() => { 
-                  let defaultStage: MatchStage = 'knockout';
-                  if (activeGroupTab !== 'all' && activeGroupTab !== 'knockout' && STAGES.some(s => s.value === activeGroupTab)) {
-                    defaultStage = activeGroupTab as MatchStage;
+                  let defaultStage: MatchStage = 'quarter';
+                  if (selectedStageFilter !== 'all' && selectedStageFilter !== 'knockout_all' && STAGES.some(s => s.value === selectedStageFilter)) {
+                    defaultStage = selectedStageFilter as MatchStage;
                   }
                   setStage(defaultStage); 
                   setShowForm(true); 

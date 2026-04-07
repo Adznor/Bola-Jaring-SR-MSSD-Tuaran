@@ -4,7 +4,7 @@ import { db, handleFirestoreError, OperationType } from '../firebase';
 import { Team, Group, Match, TeamStats } from '../types';
 import { Trophy, Star, Medal, ChevronDown, ChevronUp } from 'lucide-react';
 
-export default function Top12() {
+export default function Top8() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
@@ -13,7 +13,7 @@ export default function Top12() {
     separuhAkhir: true,
     kalahSemi: true,
     menangSemi: true,
-    top12: true
+    top8: true
   });
 
   useEffect(() => {
@@ -35,7 +35,7 @@ export default function Top12() {
     return () => { unsubTeams(); unsubGroups(); unsubMatches(); };
   }, []);
 
-  const top12Teams = useMemo(() => {
+  const top8Teams = useMemo(() => {
     const statsMap = new Map<string, TeamStats>();
 
     // Pre-initialize stats for all teams
@@ -101,19 +101,17 @@ export default function Top12() {
       if (b.points !== a.points) return b.points - a.points;
       if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
       return b.goalsFor - a.goalsFor;
-    }).slice(0, 12);
+    }).slice(0, 8);
   }, [teams, matches]);
 
   const knockoutLists = useMemo(() => {
     // 1. Suku Akhir List
-    const knockoutMatches = matches.filter(m => m.stage === 'knockout');
-    const allKnockoutFinished = knockoutMatches.length > 0 && knockoutMatches.every(m => m.status === 'finished');
+    const groupMatches = matches.filter(m => m.stage === 'group');
+    const allGroupFinished = groupMatches.length > 0 && groupMatches.every(m => m.status === 'finished');
     let sukuAkhirTeams: Team[] = [];
-    if (allKnockoutFinished) {
-      const winners = knockoutMatches.map(m => m.scoreA > m.scoreB ? m.teamAId : m.teamBId);
-      const top4Ids = top12Teams.slice(0, 4).map(t => t.teamId);
-      const combinedIds = [...new Set([...top4Ids, ...winners])];
-      sukuAkhirTeams = combinedIds.map(id => teams.find(t => t.id === id)).filter(Boolean) as Team[];
+    if (allGroupFinished) {
+      const top8Ids = top8Teams.map(t => t.teamId);
+      sukuAkhirTeams = top8Ids.map(id => teams.find(t => t.id === id)).filter(Boolean) as Team[];
     }
 
     // 2. Separuh Akhir List
@@ -138,12 +136,12 @@ export default function Top12() {
     }
 
     return {
-      sukuAkhir: { teams: sukuAkhirTeams, show: allKnockoutFinished },
+      sukuAkhir: { teams: sukuAkhirTeams, show: allGroupFinished },
       separuhAkhir: { teams: separuhAkhirTeams, show: allQuarterFinished },
       kalahSemi: { teams: kalahSemiTeams, show: allSemiFinished },
       menangSemi: { teams: menangSemiTeams, show: allSemiFinished }
     };
-  }, [matches, teams, top12Teams]);
+  }, [matches, teams, top8Teams]);
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -218,13 +216,13 @@ export default function Top12() {
 
       <div className="bg-white rounded-2xl md:rounded-3xl shadow-xl border border-pink-light overflow-hidden">
         <button 
-          onClick={() => toggleSection('top12')}
+          onClick={() => toggleSection('top8')}
           className="w-full flex items-center justify-between p-4 md:p-6 bg-gray-50 border-b border-gray-100 hover:bg-gray-100 transition-colors"
         >
-          <h3 className="text-sm md:text-lg font-black text-gray-800 uppercase tracking-tight">Kedudukan Keseluruhan (Top 12)</h3>
-          {expandedSections.top12 ? <ChevronUp className="h-5 w-5 text-matcha" /> : <ChevronDown className="h-5 w-5 text-matcha" />}
+          <h3 className="text-sm md:text-lg font-black text-gray-800 uppercase tracking-tight">Kedudukan Keseluruhan (Top 8)</h3>
+          {expandedSections.top8 ? <ChevronUp className="h-5 w-5 text-matcha" /> : <ChevronDown className="h-5 w-5 text-matcha" />}
         </button>
-        {expandedSections.top12 && (
+        {expandedSections.top8 && (
           <div className="overflow-x-auto scrollbar-hide">
             <table className="w-full text-xs md:text-sm">
               <thead className="bg-gray-50 text-gray-500 uppercase text-[10px] md:text-xs font-black tracking-widest border-b border-gray-100">
@@ -242,7 +240,7 @@ export default function Top12() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {top12Teams.map((s, i) => (
+                {top8Teams.map((s, i) => (
                   <tr key={s.teamId} className={`${i < 4 ? 'bg-pink-gradient' : 'hover:bg-gray-50 transition-colors'}`}>
                     <td className="px-4 md:px-6 py-4 md:py-5 font-black text-gray-400">
                       <div className="flex items-center gap-2">
@@ -270,7 +268,7 @@ export default function Top12() {
                     <td className="px-4 md:px-6 py-4 md:py-5 text-center font-black text-matcha-dark text-base md:text-lg">{s.points}</td>
                   </tr>
                 ))}
-                {top12Teams.length === 0 && (
+                {top8Teams.length === 0 && (
                   <tr>
                     <td colSpan={10} className="px-6 py-12 text-center text-gray-400 italic">
                       <Medal className="h-12 w-12 mx-auto mb-3 opacity-20" />

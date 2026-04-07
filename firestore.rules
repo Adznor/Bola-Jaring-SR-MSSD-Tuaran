@@ -46,7 +46,7 @@ service cloud.firestore {
     function isValidMatch(data) {
       return data.teamAId is string && data.teamBId is string &&
              data.scoreA is number && data.scoreB is number &&
-             data.stage in ['group', 'knockout', 'round16', 'quarter', 'semi', 'final'] &&
+             data.stage in ['group', 'quarter', 'semi', 'third_place', 'final'] &&
              data.status in ['upcoming', 'live', 'finished'];
     }
 

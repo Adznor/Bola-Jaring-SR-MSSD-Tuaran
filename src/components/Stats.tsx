@@ -19,7 +19,6 @@ const POSITIONS: Position[] = ['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'];
 const STAGES: { value: MatchStage | 'all'; label: string }[] = [
   { value: 'all', label: 'Semua Peringkat' },
   { value: 'group', label: 'Peringkat Kumpulan' },
-  { value: 'knockout', label: 'Pusingan Kalah Singkir' },
   { value: 'quarter', label: 'Suku Akhir' },
   { value: 'semi', label: 'Separuh Akhir' },
   { value: 'third_place', label: 'Penentuan Tempat Ke-3' },

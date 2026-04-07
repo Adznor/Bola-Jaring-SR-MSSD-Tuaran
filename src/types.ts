@@ -29,7 +29,7 @@ export interface Scorer {
   goals: number;
 }
 
-export type MatchStage = 'group' | 'knockout' | 'quarter' | 'semi' | 'third_place' | 'final';
+export type MatchStage = 'group' | 'quarter' | 'semi' | 'third_place' | 'final';
 export type MatchStatus = 'upcoming' | 'live' | 'finished';
 
 export interface Match {
