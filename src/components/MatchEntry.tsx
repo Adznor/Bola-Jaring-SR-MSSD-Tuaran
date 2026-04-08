@@ -594,8 +594,8 @@ export default function MatchEntry() {
     );
   }
 
-  const checkMatchExists = (teamAId: string, teamBId: string) => {
-    return matches.some(m => 
+  const getMatch = (teamAId: string, teamBId: string) => {
+    return matches.find(m => 
       m.stage === 'group' && 
       ((m.teamAId === teamAId && m.teamBId === teamBId) || 
        (m.teamAId === teamBId && m.teamBId === teamAId))
@@ -666,12 +666,17 @@ export default function MatchEntry() {
                         if (teamA.id === teamB.id) {
                           return <td key={teamB.id} className="p-1.5 bg-gray-100/50"></td>;
                         }
-                        const exists = checkMatchExists(teamA.id, teamB.id);
+                        const match = getMatch(teamA.id, teamB.id);
                         return (
                           <td key={teamB.id} className="p-1.5 text-center">
-                            <div className={`mx-auto w-5 h-5 rounded-md flex items-center justify-center shadow-sm ${exists ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
-                              {exists ? <CheckCircle className="h-2.5 w-2.5" /> : <X className="h-2.5 w-2.5" />}
-                            </div>
+                            <button 
+                              onClick={() => match && handleEdit(match)}
+                              disabled={!match}
+                              className={`mx-auto w-5 h-5 rounded-md flex items-center justify-center shadow-sm transition-transform active:scale-90 ${match ? 'bg-green-500 text-white cursor-pointer hover:scale-110' : 'bg-red-500 text-white cursor-not-allowed opacity-50'}`}
+                              title={match ? `Klik untuk edit perlawanan: ${match.time} (${match.court})` : 'Perlawanan belum dijadualkan'}
+                            >
+                              {match ? <CheckCircle className="h-2.5 w-2.5" /> : <X className="h-2.5 w-2.5" />}
+                            </button>
                           </td>
                         );
                       })}

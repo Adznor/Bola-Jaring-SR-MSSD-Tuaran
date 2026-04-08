@@ -70,8 +70,10 @@ export interface TournamentInfo {
   registrationOpen?: boolean;
   links?: TournamentLink[];
   footerText?: string;
-  matchDuration?: number;
-  breakDuration?: number;
+  groupMatchDuration?: number;
+  groupBreakDuration?: number;
+  knockoutMatchDuration?: number;
+  knockoutBreakDuration?: number;
   dailyStartTime?: string;
   dailyEndTime?: string;
   tournamentDays?: number;

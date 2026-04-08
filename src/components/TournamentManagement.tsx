@@ -23,8 +23,10 @@ export default function TournamentManagement() {
   const [managerLogoUrl, setManagerLogoUrl] = useState('');
   const [tournamentLogoUrl, setTournamentLogoUrl] = useState('');
   const [footerText, setFooterText] = useState('');
-  const [matchDuration, setMatchDuration] = useState(20);
-  const [breakDuration, setBreakDuration] = useState(5);
+  const [groupMatchDuration, setGroupMatchDuration] = useState(15);
+  const [groupBreakDuration, setGroupBreakDuration] = useState(1);
+  const [knockoutMatchDuration, setKnockoutMatchDuration] = useState(23);
+  const [knockoutBreakDuration, setKnockoutBreakDuration] = useState(3);
   const [dailyStartTime, setDailyStartTime] = useState('08:00');
   const [dailyEndTime, setDailyEndTime] = useState('17:00');
   const [numGroups, setNumGroups] = useState(4);
@@ -74,8 +76,10 @@ export default function TournamentManagement() {
         setManagerLogoUrl(data.managerLogoUrl || '');
         setTournamentLogoUrl(data.tournamentLogoUrl || '');
         setFooterText(data.footerText || '"Majulah Sukan Untuk Negara - MSSD Tuaran"');
-        setMatchDuration(data.matchDuration || 20);
-        setBreakDuration(data.breakDuration || 5);
+        setGroupMatchDuration(data.groupMatchDuration || 15);
+        setGroupBreakDuration(data.groupBreakDuration || 1);
+        setKnockoutMatchDuration(data.knockoutMatchDuration || 23);
+        setKnockoutBreakDuration(data.knockoutBreakDuration || 3);
         setDailyStartTime(data.dailyStartTime || '08:00');
         setDailyEndTime(data.dailyEndTime || '17:00');
         setNumGroups(data.numGroups || 4);
@@ -460,8 +464,10 @@ export default function TournamentManagement() {
       managerLogoUrl,
       tournamentLogoUrl,
       footerText,
-      matchDuration,
-      breakDuration,
+      groupMatchDuration,
+      groupBreakDuration,
+      knockoutMatchDuration,
+      knockoutBreakDuration,
       dailyStartTime,
       dailyEndTime,
       numGroups,
@@ -724,20 +730,38 @@ export default function TournamentManagement() {
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
               <div className="space-y-1 md:space-y-2">
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Tempoh Perlawanan (Minit)</label>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Masa Perlawanan Kumpulan (Minit)</label>
                 <input
                   type="number"
-                  value={matchDuration}
-                  onChange={(e) => setMatchDuration(parseInt(e.target.value))}
+                  value={groupMatchDuration}
+                  onChange={(e) => setGroupMatchDuration(parseInt(e.target.value))}
                   className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-matcha"
                 />
               </div>
               <div className="space-y-1 md:space-y-2">
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Masa Rehat (Minit)</label>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Masa Rehat Kumpulan (Minit)</label>
                 <input
                   type="number"
-                  value={breakDuration}
-                  onChange={(e) => setBreakDuration(parseInt(e.target.value))}
+                  value={groupBreakDuration}
+                  onChange={(e) => setGroupBreakDuration(parseInt(e.target.value))}
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-matcha"
+                />
+              </div>
+              <div className="space-y-1 md:space-y-2">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Masa Perlawanan Kalah Mati (Minit)</label>
+                <input
+                  type="number"
+                  value={knockoutMatchDuration}
+                  onChange={(e) => setKnockoutMatchDuration(parseInt(e.target.value))}
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-matcha"
+                />
+              </div>
+              <div className="space-y-1 md:space-y-2">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Masa Rehat Kalah Mati (Minit)</label>
+                <input
+                  type="number"
+                  value={knockoutBreakDuration}
+                  onChange={(e) => setKnockoutBreakDuration(parseInt(e.target.value))}
                   className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-matcha"
                 />
               </div>

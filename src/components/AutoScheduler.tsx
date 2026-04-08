@@ -42,7 +42,7 @@ export default function AutoScheduler() {
   };
 
   const generateGroupSchedule = async () => {
-    if (!info || !info.matchDuration || !info.dailyStartTime || !info.dailyEndTime || !info.tournamentDates?.length) {
+    if (!info || !info.groupMatchDuration || !info.dailyStartTime || !info.dailyEndTime || !info.tournamentDates?.length) {
       showNotification('Sila lengkapkan parameter penjadualan di tab Tetapan.', 'error');
       return;
     }
@@ -85,8 +85,8 @@ export default function AutoScheduler() {
       }
 
       // Scheduling parameters
-      const matchDur = info.matchDuration;
-      const breakDur = info.breakDuration || 0;
+      const matchDur = info.groupMatchDuration || 15;
+      const breakDur = info.groupBreakDuration || 1;
       const slotDur = matchDur + breakDur;
       const startTimeStr = info.dailyStartTime;
       const endTimeStr = info.dailyEndTime;
@@ -215,13 +215,15 @@ export default function AutoScheduler() {
       if (lastGroupMatch && info) {
         // Start next day or after last match
         currentStartTime = new Date(`${lastGroupMatch.date}T${lastGroupMatch.time}`);
-        currentStartTime = new Date(currentStartTime.getTime() + (info.matchDuration || 20) * 60000 + (info.breakDuration || 5) * 60000);
+        const prevMatchDur = lastGroupMatch.stage === 'group' ? (info.groupMatchDuration || 15) : (info.knockoutMatchDuration || 23);
+        const prevBreakDur = lastGroupMatch.stage === 'group' ? (info.groupBreakDuration || 1) : (info.knockoutBreakDuration || 3);
+        currentStartTime = new Date(currentStartTime.getTime() + prevMatchDur * 60000 + prevBreakDur * 60000);
       } else {
         currentStartTime = new Date();
       }
 
-      const matchDur = info?.matchDuration || 20;
-      const breakDur = info?.breakDuration || 5;
+      const matchDur = info?.knockoutMatchDuration || 23;
+      const breakDur = info?.knockoutBreakDuration || 3;
       const slotDur = matchDur + breakDur;
 
       // Add QF matches
