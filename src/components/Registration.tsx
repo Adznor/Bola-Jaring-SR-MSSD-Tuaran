@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../firebase';
-import { Team, Player, Position, TournamentInfo, POSITION_ORDER } from '../types';
+import { Team, Player, Position, TournamentInfo, POSITION_ORDER, Group } from '../types';
 import { Plus, Trash2, Edit2, X, Save, UserPlus, Users, AlertCircle, CheckCircle, Zap, FileUp, Download } from 'lucide-react';
 import Papa from 'papaparse';
 
@@ -15,7 +15,10 @@ export default function Registration() {
   const [managerName, setManagerName] = useState('');
   const [phone, setPhone] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
+  const [groupId, setGroupId] = useState('');
+  const [groupPosition, setGroupPosition] = useState<number | ''>('');
   const [players, setPlayers] = useState<Player[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [newPlayerName, setNewPlayerName] = useState('');
   const [newPlayerPos, setNewPlayerPos] = useState<Position>('C');
   const [editingPlayerIndex, setEditingPlayerIndex] = useState<number | null>(null);
@@ -50,9 +53,14 @@ export default function Registration() {
       handleFirestoreError(error, OperationType.GET, 'tournamentInfo');
     });
 
+    const unsubGroups = onSnapshot(collection(db, 'groups'), (snapshot) => {
+      setGroups(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Group)).sort((a, b) => a.name.localeCompare(b.name)));
+    });
+
     return () => {
       unsubTeams();
       unsubInfo();
+      unsubGroups();
     };
   }, []);
 
@@ -126,6 +134,8 @@ export default function Registration() {
       managerName,
       phone,
       logoUrl: logoUrl,
+      groupId: groupId || null,
+      groupPosition: groupPosition === '' ? null : Number(groupPosition),
       players,
       createdAt: editingTeam?.createdAt || Date.now(),
     };
@@ -150,6 +160,8 @@ export default function Registration() {
     setManagerName('');
     setPhone('');
     setLogoUrl('');
+    setGroupId('');
+    setGroupPosition('');
     setPlayers([]);
     setEditingTeam(null);
     setEditingPlayerIndex(null);
@@ -164,6 +176,8 @@ export default function Registration() {
     setManagerName(team.managerName || '');
     setPhone(team.phone || '');
     setLogoUrl(team.logoUrl || '');
+    setGroupId(team.groupId || '');
+    setGroupPosition(team.groupPosition || '');
     setPlayers(team.players);
     setShowForm(true);
   };
@@ -529,6 +543,29 @@ export default function Registration() {
                   required
                 />
               </div>
+              <div>
+                <label className="block text-[9px] sm:text-sm font-medium text-gray-700 mb-1">Kumpulan</label>
+                <select
+                  value={groupId}
+                  onChange={(e) => setGroupId(e.target.value)}
+                  className="w-full px-3 sm:px-4 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-matcha focus:border-transparent text-[11px] sm:text-base"
+                >
+                  <option value="">-- Pilih Kumpulan --</option>
+                  {groups.map(g => (
+                    <option key={g.id} value={g.id}>Kumpulan {g.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[9px] sm:text-sm font-medium text-gray-700 mb-1">Kedudukan Dalam Kumpulan</label>
+                <input
+                  type="number"
+                  value={groupPosition}
+                  onChange={(e) => setGroupPosition(e.target.value ? parseInt(e.target.value) : '')}
+                  className="w-full px-3 sm:px-4 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-matcha focus:border-transparent text-[11px] sm:text-base"
+                  placeholder="Contoh: 1"
+                />
+              </div>
             </div>
 
             <div className="border-t border-pink-light pt-4 md:pt-6">
@@ -703,7 +740,11 @@ export default function Registration() {
                 </div>
                 <div className="flex justify-between items-center text-[8px] sm:text-sm">
                   <span className="text-gray-500">Kumpulan:</span>
-                  <span className="font-bold text-gray-700">{team.groupId ? 'Telah Diundi' : 'Belum Diundi'}</span>
+                  <span className="font-bold text-gray-700">
+                    {team.groupId ? (
+                      `Kumpulan ${groups.find(g => g.id === team.groupId)?.name || ''}${team.groupPosition ? ` (Pos: ${team.groupPosition})` : ''}`
+                    ) : 'Belum Diundi'}
+                  </span>
                 </div>
               </div>
             </div>

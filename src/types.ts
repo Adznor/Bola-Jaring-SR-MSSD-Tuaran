@@ -13,6 +13,7 @@ export interface Team {
   managerName?: string;
   phone?: string;
   groupId?: string;
+  groupPosition?: number;
   players: Player[];
   logoUrl?: string;
   createdAt?: number;
@@ -75,6 +76,8 @@ export interface TournamentInfo {
   dailyEndTime?: string;
   tournamentDays?: number;
   tournamentDates?: string[];
+  numGroups?: number;
+  teamsPerGroup?: number;
 }
 
 export interface TeamStats {

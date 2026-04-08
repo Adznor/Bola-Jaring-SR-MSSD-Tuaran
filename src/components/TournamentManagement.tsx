@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { collection, onSnapshot, addDoc, updateDoc, doc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { TournamentInfo as TournamentInfoType, TournamentLink, Team, Match, Group, Position } from '../types';
-import { Save, Info, Building2, User, Calendar, Clock, MapPin, Trophy, Users, Link as LinkIcon, Plus, Trash2, Star, CheckCircle, X, ExternalLink, FileDown, RefreshCw, Lock } from 'lucide-react';
+import { Save, Info, Building2, User, Calendar, Clock, MapPin, Trophy, Users, Link as LinkIcon, Plus, Trash2, Star, CheckCircle, X, ExternalLink, FileDown, RefreshCw, Lock, LayoutGrid } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -27,11 +27,14 @@ export default function TournamentManagement() {
   const [breakDuration, setBreakDuration] = useState(5);
   const [dailyStartTime, setDailyStartTime] = useState('08:00');
   const [dailyEndTime, setDailyEndTime] = useState('17:00');
+  const [numGroups, setNumGroups] = useState(4);
+  const [teamsPerGroup, setTeamsPerGroup] = useState(4);
   const [tournamentDays, setTournamentDays] = useState(2);
   const [tournamentDates, setTournamentDates] = useState<string[]>([]);
   const [links, setLinks] = useState<TournamentLink[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(false);
   const [resetPassword, setResetPassword] = useState('');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [newLinkLabel, setNewLinkLabel] = useState('');
@@ -75,6 +78,8 @@ export default function TournamentManagement() {
         setBreakDuration(data.breakDuration || 5);
         setDailyStartTime(data.dailyStartTime || '08:00');
         setDailyEndTime(data.dailyEndTime || '17:00');
+        setNumGroups(data.numGroups || 4);
+        setTeamsPerGroup(data.teamsPerGroup || 4);
         setTournamentDays(data.tournamentDays || 2);
         setTournamentDates(data.tournamentDates || []);
         setLinks(data.links || []);
@@ -366,6 +371,78 @@ export default function TournamentManagement() {
     }
   };
 
+  const handleSetupGroups = async () => {
+    if (!numGroups || numGroups <= 0) {
+      showNotification('Sila tetapkan bilangan kumpulan yang sah.', 'error');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const batch = writeBatch(db);
+      
+      // Delete existing groups first
+      const groupsSnap = await getDocs(collection(db, 'groups'));
+      groupsSnap.forEach(doc => batch.delete(doc.ref));
+
+      // Create new groups A, B, C...
+      for (let i = 0; i < numGroups; i++) {
+        const groupName = String.fromCharCode(65 + i); // A, B, C...
+        const groupRef = doc(collection(db, 'groups'));
+        batch.set(groupRef, { name: groupName });
+      }
+
+      await batch.commit();
+      showNotification(`Berjaya menyediakan ${numGroups} kumpulan (A-${String.fromCharCode(64 + numGroups)}).`);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'groups');
+      showNotification('Ralat semasa menyediakan kumpulan.', 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleAutoDraw = async () => {
+    if (teams.length === 0 || groups.length === 0) {
+      showNotification('Sila pastikan pasukan dan kumpulan telah didaftarkan.', 'error');
+      return;
+    }
+
+    if (teams.length > numGroups * teamsPerGroup) {
+      showNotification(`Jumlah pasukan (${teams.length}) melebihi kapasiti (${numGroups * teamsPerGroup}).`, 'error');
+      return;
+    }
+
+    setIsDrawing(true);
+    try {
+      const batch = writeBatch(db);
+      const shuffledTeams = [...teams].sort(() => Math.random() - 0.5);
+      const sortedGroups = [...groups].sort((a, b) => a.name.localeCompare(b.name));
+
+      let teamIdx = 0;
+      for (let gIdx = 0; gIdx < sortedGroups.length; gIdx++) {
+        for (let pIdx = 1; pIdx <= teamsPerGroup; pIdx++) {
+          if (teamIdx < shuffledTeams.length) {
+            const team = shuffledTeams[teamIdx];
+            batch.update(doc(db, 'teams', team.id), {
+              groupId: sortedGroups[gIdx].id,
+              groupPosition: pIdx
+            });
+            teamIdx++;
+          }
+        }
+      }
+
+      await batch.commit();
+      showNotification('Undian pasukan berjaya dijalankan secara automatik!');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'draw');
+      showNotification('Ralat semasa menjalankan undian.', 'error');
+    } finally {
+      setIsDrawing(false);
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -387,6 +464,8 @@ export default function TournamentManagement() {
       breakDuration,
       dailyStartTime,
       dailyEndTime,
+      numGroups,
+      teamsPerGroup,
       tournamentDays,
       tournamentDates,
       links
@@ -695,6 +774,47 @@ export default function TournamentManagement() {
                   className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-matcha"
                 />
               </div>
+
+              <div className="space-y-1 md:space-y-2">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Bilangan Kumpulan</label>
+                <input
+                  type="number"
+                  value={numGroups}
+                  onChange={(e) => setNumGroups(parseInt(e.target.value))}
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-matcha"
+                />
+              </div>
+
+              <div className="space-y-1 md:space-y-2">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Bilangan Pasukan Per Kumpulan</label>
+                <input
+                  type="number"
+                  value={teamsPerGroup}
+                  onChange={(e) => setTeamsPerGroup(parseInt(e.target.value))}
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-matcha"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleSetupGroups}
+                disabled={isSaving}
+                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <LayoutGrid className="h-4 w-4" />
+                Sediakan Kumpulan
+              </button>
+              <button
+                type="button"
+                onClick={handleAutoDraw}
+                disabled={isDrawing || teams.length === 0 || groups.length === 0}
+                className="flex-1 bg-matcha text-white px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-matcha-dark transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${isDrawing ? 'animate-spin' : ''}`} />
+                Undi Pasukan
+              </button>
             </div>
 
             <div className="space-y-3">
