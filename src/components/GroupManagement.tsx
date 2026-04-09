@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Team, Group } from '../types';
-import { Plus, Trash2, LayoutGrid, Users, ArrowRightLeft } from 'lucide-react';
+import { Plus, Trash2, LayoutGrid, Users, ArrowRightLeft, X } from 'lucide-react';
 
 export default function GroupManagement() {
   const [teams, setTeams] = useState<Team[]>([]);
@@ -72,8 +72,11 @@ export default function GroupManagement() {
     );
   };
 
-  const handleAssignTeam = async (teamId: string, groupId: string) => {
-    await updateDoc(doc(db, 'teams', teamId), { groupId: groupId || null });
+  const handleAssignTeam = async (teamId: string, groupId: string | null) => {
+    await updateDoc(doc(db, 'teams', teamId), { 
+      groupId: groupId || null,
+      groupPosition: groupId ? (teams.filter(t => t.groupId === groupId).length + 1) : null
+    });
   };
 
   const sortedGroups = [...groups].sort((a, b) => a.name.localeCompare(b.name));
@@ -83,6 +86,7 @@ export default function GroupManagement() {
     if (timeB !== timeA) return timeB - timeA;
     return a.name.localeCompare(b.name);
   });
+  const unassignedTeams = sortedTeams.filter(t => !t.groupId);
 
   return (
     <div className="space-y-6 md:space-y-8">
@@ -184,6 +188,7 @@ export default function GroupManagement() {
                               <tr>
                                 <th className="px-2 md:px-3 py-1.5 md:py-2 text-left w-12 md:w-16">Kod</th>
                                 <th className="px-2 md:px-3 py-1.5 md:py-2 text-left">Nama Pasukan</th>
+                                <th className="px-2 md:px-3 py-1.5 md:py-2 text-center w-10">Aksi</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
@@ -197,6 +202,15 @@ export default function GroupManagement() {
                                       <img src={team.logoUrl} alt={team.name} className="h-4 w-4 md:h-5 md:w-5 object-contain" referrerPolicy="no-referrer" />
                                     )}
                                     <span className="break-words leading-tight">{team.name}</span>
+                                  </td>
+                                  <td className="px-2 md:px-3 py-1.5 md:py-2 text-center">
+                                    <button 
+                                      onClick={() => handleAssignTeam(team.id, null)}
+                                      className="text-red-400 hover:text-red-600 p-1"
+                                      title="Keluarkan dari kumpulan"
+                                    >
+                                      <X className="h-3 w-3 md:h-4 md:w-4" />
+                                    </button>
                                   </td>
                                 </tr>
                               ))}
@@ -218,7 +232,7 @@ export default function GroupManagement() {
         <div className="space-y-4">
           <h4 className="text-base md:text-lg font-bold text-gray-800 flex items-center gap-2">
             <ArrowRightLeft className="h-5 w-5 text-matcha" />
-            Agihan Pasukan
+            Agihan Pasukan ({unassignedTeams.length})
           </h4>
           <div className="bg-white border border-pink-light rounded-xl overflow-hidden shadow-sm">
             <div className="overflow-x-auto scrollbar-hide">
@@ -226,11 +240,11 @@ export default function GroupManagement() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-3 md:px-4 py-2 md:py-3 text-left">Pasukan</th>
-                    <th className="px-3 md:px-4 py-2 md:py-3 text-left">Pilih Kumpulan</th>
+                    <th className="px-3 md:px-4 py-2 md:py-3 text-left">Agihan Kumpulan</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {sortedTeams.map((team) => (
+                  {unassignedTeams.map((team) => (
                     <tr key={team.id}>
                       <td className="px-3 md:px-4 py-2 md:py-3">
                         <div className="flex items-center gap-1.5 md:gap-2">
@@ -241,22 +255,23 @@ export default function GroupManagement() {
                         </div>
                       </td>
                       <td className="px-3 md:px-4 py-2 md:py-3">
-                        <select
-                          value={team.groupId || ''}
-                          onChange={(e) => handleAssignTeam(team.id, e.target.value)}
-                          className="w-full px-2 md:px-3 py-1 md:py-1.5 border border-gray-300 rounded-lg text-[10px] md:text-sm focus:ring-2 focus:ring-matcha focus:border-transparent"
-                        >
-                          <option value="">-- Tiada --</option>
+                        <div className="flex flex-wrap gap-1">
                           {sortedGroups.map(g => (
-                            <option key={g.id} value={g.id}>{g.name}</option>
+                            <button
+                              key={g.id}
+                              onClick={() => handleAssignTeam(team.id, g.id)}
+                              className="px-2 py-1 bg-matcha/10 text-matcha hover:bg-matcha text-[10px] md:text-xs font-bold rounded transition-all hover:text-white"
+                            >
+                              {g.name.split(' ').pop()}
+                            </button>
                           ))}
-                        </select>
+                        </div>
                       </td>
                     </tr>
                   ))}
-                  {teams.length === 0 && (
+                  {unassignedTeams.length === 0 && (
                     <tr>
-                      <td colSpan={2} className="px-4 py-8 text-center text-gray-400 italic">Daftar pasukan terlebih dahulu</td>
+                      <td colSpan={2} className="px-4 py-8 text-center text-gray-400 italic">Semua pasukan telah diundi masuk ke dalam kumpulan</td>
                     </tr>
                   )}
                 </tbody>

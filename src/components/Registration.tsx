@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { Team, Player, Position, TournamentInfo, POSITION_ORDER, Group } from '../types';
-import { Plus, Trash2, Edit2, X, Save, UserPlus, Users, AlertCircle, CheckCircle, Zap, FileUp, Download } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, Save, UserPlus, Users, AlertCircle, CheckCircle, Zap, FileUp, Download, Star } from 'lucide-react';
 import Papa from 'papaparse';
 
 const POSITIONS: Position[] = ['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'];
@@ -17,6 +17,7 @@ export default function Registration() {
   const [logoUrl, setLogoUrl] = useState('');
   const [groupId, setGroupId] = useState('');
   const [groupPosition, setGroupPosition] = useState<number | ''>('');
+  const [isSeeded, setIsSeeded] = useState(false);
   const [players, setPlayers] = useState<Player[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [newPlayerName, setNewPlayerName] = useState('');
@@ -136,6 +137,7 @@ export default function Registration() {
       logoUrl: logoUrl,
       groupId: groupId || null,
       groupPosition: groupPosition === '' ? null : Number(groupPosition),
+      isSeeded,
       players,
       createdAt: editingTeam?.createdAt || Date.now(),
     };
@@ -162,6 +164,7 @@ export default function Registration() {
     setLogoUrl('');
     setGroupId('');
     setGroupPosition('');
+    setIsSeeded(false);
     setPlayers([]);
     setEditingTeam(null);
     setEditingPlayerIndex(null);
@@ -178,6 +181,7 @@ export default function Registration() {
     setLogoUrl(team.logoUrl || '');
     setGroupId(team.groupId || '');
     setGroupPosition(team.groupPosition || '');
+    setIsSeeded(team.isSeeded || false);
     setPlayers(team.players);
     setShowForm(true);
   };
@@ -566,6 +570,19 @@ export default function Registration() {
                   placeholder="Contoh: 1"
                 />
               </div>
+              <div className="flex items-center gap-2 pt-6">
+                <input
+                  type="checkbox"
+                  id="isSeeded"
+                  checked={isSeeded}
+                  onChange={(e) => setIsSeeded(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-matcha focus:ring-matcha cursor-pointer"
+                />
+                <label htmlFor="isSeeded" className="text-[9px] sm:text-sm font-medium text-gray-700 cursor-pointer flex items-center gap-1">
+                  <Star className={`h-3 w-3 sm:h-4 sm:w-4 ${isSeeded ? 'text-yellow-500 fill-yellow-500' : 'text-gray-400'}`} />
+                  Pasukan Seeded (Tetap dalam kumpulan semasa undian)
+                </label>
+              </div>
             </div>
 
             <div className="border-t border-pink-light pt-4 md:pt-6">
@@ -723,7 +740,10 @@ export default function Registration() {
                       <Users className="h-3 w-3 sm:h-6 sm:w-6 text-matcha opacity-30" />
                     </div>
                   )}
-                  <h4 className="font-bold text-gray-800 text-[10px] sm:text-base break-words leading-tight">{team.name}</h4>
+                  <h4 className="font-bold text-gray-800 text-[10px] sm:text-base break-words leading-tight flex items-center gap-1">
+                    {team.name}
+                    {team.isSeeded && <Star className="h-2 w-2 sm:h-3 sm:w-3 text-yellow-500 fill-yellow-500" />}
+                  </h4>
                 </div>
                 {isUrusetia && (
                   <div className="flex gap-1">

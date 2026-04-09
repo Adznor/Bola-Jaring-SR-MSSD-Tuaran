@@ -420,20 +420,37 @@ export default function TournamentManagement() {
     setIsDrawing(true);
     try {
       const batch = writeBatch(db);
-      const shuffledTeams = [...teams].sort(() => Math.random() - 0.5);
       const sortedGroups = [...groups].sort((a, b) => a.name.localeCompare(b.name));
-
-      let teamIdx = 0;
-      for (let gIdx = 0; gIdx < sortedGroups.length; gIdx++) {
-        for (let pIdx = 1; pIdx <= teamsPerGroup; pIdx++) {
-          if (teamIdx < shuffledTeams.length) {
-            const team = shuffledTeams[teamIdx];
-            batch.update(doc(db, 'teams', team.id), {
-              groupId: sortedGroups[gIdx].id,
-              groupPosition: pIdx
-            });
-            teamIdx++;
-          }
+      
+      // 1. Identify fixed teams (seeded and assigned)
+      const fixedTeams = teams.filter(t => t.isSeeded && t.groupId && t.groupPosition);
+      const drawTeams = teams.filter(t => !fixedTeams.some(ft => ft.id === t.id));
+      
+      // 2. Identify all possible slots
+      const allSlots: { groupId: string, position: number }[] = [];
+      for (const group of sortedGroups) {
+        for (let p = 1; p <= teamsPerGroup; p++) {
+          allSlots.push({ groupId: group.id, position: p });
+        }
+      }
+      
+      // 3. Filter out occupied slots
+      const availableSlots = allSlots.filter(slot => 
+        !fixedTeams.some(ft => ft.groupId === slot.groupId && ft.groupPosition === slot.position)
+      );
+      
+      // 4. Shuffle teams to be drawn
+      const shuffledDrawTeams = [...drawTeams].sort(() => Math.random() - 0.5);
+      
+      // 5. Assign teams to available slots
+      for (let i = 0; i < shuffledDrawTeams.length; i++) {
+        if (i < availableSlots.length) {
+          const team = shuffledDrawTeams[i];
+          const slot = availableSlots[i];
+          batch.update(doc(db, 'teams', team.id), {
+            groupId: slot.groupId,
+            groupPosition: slot.position
+          });
         }
       }
 

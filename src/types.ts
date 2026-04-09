@@ -14,6 +14,7 @@ export interface Team {
   phone?: string;
   groupId?: string;
   groupPosition?: number;
+  isSeeded?: boolean;
   players: Player[];
   logoUrl?: string;
   createdAt?: number;
