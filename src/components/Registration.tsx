@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { Team, Player, Position, TournamentInfo, POSITION_ORDER, Group } from '../types';
-import { Plus, Trash2, Edit2, X, Save, UserPlus, Users, AlertCircle, CheckCircle, Zap, FileUp, Download, Star } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, Save, UserPlus, Users, AlertCircle, CheckCircle, Zap, FileUp, Download } from 'lucide-react';
 import Papa from 'papaparse';
 
 const POSITIONS: Position[] = ['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'];
@@ -15,9 +15,6 @@ export default function Registration() {
   const [managerName, setManagerName] = useState('');
   const [phone, setPhone] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
-  const [groupId, setGroupId] = useState('');
-  const [groupPosition, setGroupPosition] = useState<number | ''>('');
-  const [isSeeded, setIsSeeded] = useState(false);
   const [players, setPlayers] = useState<Player[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [newPlayerName, setNewPlayerName] = useState('');
@@ -71,7 +68,9 @@ export default function Registration() {
   const canRegister = isUrusetia || isRegistrationOpen;
 
   const handleTeamClick = (team: Team) => {
-    if (!isRegistrationOpen && !isUrusetia) {
+    if (isRegistrationOpen || isUrusetia) {
+      handleEdit(team);
+    } else {
       setSelectedTeam(team);
       setShowTeamDetails(true);
     }
@@ -135,9 +134,6 @@ export default function Registration() {
       managerName,
       phone,
       logoUrl: logoUrl,
-      groupId: groupId || null,
-      groupPosition: groupPosition === '' ? null : Number(groupPosition),
-      isSeeded,
       players,
       createdAt: editingTeam?.createdAt || Date.now(),
     };
@@ -162,9 +158,6 @@ export default function Registration() {
     setManagerName('');
     setPhone('');
     setLogoUrl('');
-    setGroupId('');
-    setGroupPosition('');
-    setIsSeeded(false);
     setPlayers([]);
     setEditingTeam(null);
     setEditingPlayerIndex(null);
@@ -179,9 +172,6 @@ export default function Registration() {
     setManagerName(team.managerName || '');
     setPhone(team.phone || '');
     setLogoUrl(team.logoUrl || '');
-    setGroupId(team.groupId || '');
-    setGroupPosition(team.groupPosition || '');
-    setIsSeeded(team.isSeeded || false);
     setPlayers(team.players);
     setShowForm(true);
   };
@@ -547,42 +537,6 @@ export default function Registration() {
                   required
                 />
               </div>
-              <div>
-                <label className="block text-[9px] sm:text-sm font-medium text-gray-700 mb-1">Kumpulan</label>
-                <select
-                  value={groupId}
-                  onChange={(e) => setGroupId(e.target.value)}
-                  className="w-full px-3 sm:px-4 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-matcha focus:border-transparent text-[11px] sm:text-base"
-                >
-                  <option value="">-- Pilih Kumpulan --</option>
-                  {groups.map(g => (
-                    <option key={g.id} value={g.id}>Kumpulan {g.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[9px] sm:text-sm font-medium text-gray-700 mb-1">Kedudukan Dalam Kumpulan</label>
-                <input
-                  type="number"
-                  value={groupPosition}
-                  onChange={(e) => setGroupPosition(e.target.value ? parseInt(e.target.value) : '')}
-                  className="w-full px-3 sm:px-4 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-matcha focus:border-transparent text-[11px] sm:text-base"
-                  placeholder="Contoh: 1"
-                />
-              </div>
-              <div className="flex items-center gap-2 pt-6">
-                <input
-                  type="checkbox"
-                  id="isSeeded"
-                  checked={isSeeded}
-                  onChange={(e) => setIsSeeded(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 text-matcha focus:ring-matcha cursor-pointer"
-                />
-                <label htmlFor="isSeeded" className="text-[9px] sm:text-sm font-medium text-gray-700 cursor-pointer flex items-center gap-1">
-                  <Star className={`h-3 w-3 sm:h-4 sm:w-4 ${isSeeded ? 'text-yellow-500 fill-yellow-500' : 'text-gray-400'}`} />
-                  Pasukan Seeded (Tetap dalam kumpulan semasa undian)
-                </label>
-              </div>
             </div>
 
             <div className="border-t border-pink-light pt-4 md:pt-6">
@@ -740,9 +694,11 @@ export default function Registration() {
                       <Users className="h-3 w-3 sm:h-6 sm:w-6 text-matcha opacity-30" />
                     </div>
                   )}
-                  <h4 className="font-bold text-gray-800 text-[10px] sm:text-base break-words leading-tight flex items-center gap-1">
-                    {team.name}
-                    {team.isSeeded && <Star className="h-2 w-2 sm:h-3 sm:w-3 text-yellow-500 fill-yellow-500" />}
+                  <h4 className="font-bold text-gray-800 text-[10px] sm:text-base break-words leading-tight flex items-center gap-2">
+                    <span>{team.name}</span>
+                    <span className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 bg-matcha text-white rounded-full flex items-center justify-center text-[8px] sm:text-xs font-black shadow-sm">
+                      {team.players.length}
+                    </span>
                   </h4>
                 </div>
                 {isUrusetia && (
@@ -752,20 +708,6 @@ export default function Registration() {
                     </button>
                   </div>
                 )}
-              </div>
-              <div className="p-2 sm:p-4">
-                <div className="flex justify-between items-center text-[8px] sm:text-sm mb-0.5 sm:mb-2">
-                  <span className="text-gray-500">Pemain:</span>
-                  <span className="font-bold text-matcha">{team.players.length}</span>
-                </div>
-                <div className="flex justify-between items-center text-[8px] sm:text-sm">
-                  <span className="text-gray-500">Kumpulan:</span>
-                  <span className="font-bold text-gray-700">
-                    {team.groupId ? (
-                      `Kumpulan ${groups.find(g => g.id === team.groupId)?.name || ''}${team.groupPosition ? ` (Pos: ${team.groupPosition})` : ''}`
-                    ) : 'Belum Diundi'}
-                  </span>
-                </div>
               </div>
             </div>
           );

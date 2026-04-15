@@ -2,9 +2,46 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { collection, onSnapshot, addDoc, updateDoc, doc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { TournamentInfo as TournamentInfoType, TournamentLink, Team, Match, Group, Position } from '../types';
-import { Save, Info, Building2, User, Calendar, Clock, MapPin, Trophy, Users, Link as LinkIcon, Plus, Trash2, Star, CheckCircle, X, ExternalLink, FileDown, RefreshCw, Lock, LayoutGrid } from 'lucide-react';
+import { Save, Info, Building2, User, Calendar, Clock, MapPin, Trophy, Users, Link as LinkIcon, Plus, Trash2, Star, CheckCircle, X, ExternalLink, FileDown, RefreshCw, Lock, LayoutGrid, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+
+interface SettingsSectionProps {
+  title: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  isOpen: boolean;
+  onToggle: () => void;
+  badge?: string;
+}
+
+const SettingsSection = ({ title, icon, children, isOpen, onToggle, badge }: SettingsSectionProps) => (
+  <div className="bg-white rounded-2xl border border-pink-light overflow-hidden shadow-sm transition-all duration-300">
+    <button
+      type="button"
+      onClick={onToggle}
+      className="w-full px-6 py-4 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
+    >
+      <div className="flex items-center gap-3">
+        <div className="p-2 bg-matcha/10 rounded-xl text-matcha">
+          {icon}
+        </div>
+        <div className="text-left">
+          <h3 className="text-sm md:text-base font-black text-gray-800 uppercase tracking-tight">{title}</h3>
+          {badge && (
+            <span className="text-[10px] font-bold text-matcha uppercase tracking-widest">{badge}</span>
+          )}
+        </div>
+      </div>
+      {isOpen ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
+    </button>
+    <div className={`transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[3000px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
+      <div className="p-6 border-t border-gray-50 bg-white">
+        {children}
+      </div>
+    </div>
+  </div>
+);
 
 export default function TournamentManagement() {
   const [info, setInfo] = useState<TournamentInfoType | null>(null);
@@ -42,6 +79,14 @@ export default function TournamentManagement() {
   const [newLinkLabel, setNewLinkLabel] = useState('');
   const [newLinkUrl, setNewLinkUrl] = useState('');
   const [notification, setNotification] = useState<{ show: boolean; message: string; type: 'success' | 'error' }>({ show: false, message: '', type: 'success' });
+
+  const [openSections, setOpenSections] = useState<string[]>(['basic']);
+
+  const toggleSection = (section: string) => {
+    setOpenSections(prev => 
+      prev.includes(section) ? prev.filter(s => s !== section) : [...prev, section]
+    );
+  };
 
   const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
     setNotification({ show: true, message, type });
@@ -422,8 +467,8 @@ export default function TournamentManagement() {
       const batch = writeBatch(db);
       const sortedGroups = [...groups].sort((a, b) => a.name.localeCompare(b.name));
       
-      // 1. Identify fixed teams (seeded and assigned)
-      const fixedTeams = teams.filter(t => t.isSeeded && t.groupId && t.groupPosition);
+      // 1. Identify fixed teams (already assigned to a group and position)
+      const fixedTeams = teams.filter(t => t.groupId && t.groupPosition);
       const drawTeams = teams.filter(t => !fixedTeams.some(ft => ft.id === t.id));
       
       // 2. Identify all possible slots
@@ -524,408 +569,275 @@ export default function TournamentManagement() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="bg-white rounded-2xl md:rounded-3xl shadow-xl border border-pink-light overflow-hidden">
-        <div className="bg-matcha-gradient p-6 md:p-8 text-white text-center">
-          <Info className="h-8 w-8 md:h-12 md:w-12 mx-auto mb-3 md:mb-4 opacity-80" />
-          <h2 className="text-xl md:text-3xl font-black tracking-tight uppercase">TETAPAN KEJOHANAN</h2>
-          <p className="text-matcha-light mt-1 md:mt-2 uppercase tracking-widest text-[10px] md:text-sm font-bold">URUS SETIA MSSD TUARAN</p>
+    <div className="max-w-4xl mx-auto space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
+      <div className="flex flex-col sm:flex-row items-center justify-between p-5 md:p-6 bg-white rounded-3xl border border-pink-light shadow-sm gap-4">
+        <div className="flex items-center gap-4 w-full sm:w-auto">
+          <div className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center shadow-lg transition-all duration-500 ${info?.registrationOpen ? 'bg-green-500 shadow-green-500/20' : 'bg-red-500 shadow-red-500/20'}`}>
+            <Users className="h-6 w-6 md:h-7 md:w-7 text-white" />
+          </div>
+          <div>
+            <h3 className="text-[10px] md:text-xs font-black text-gray-400 uppercase tracking-widest">Status Pendaftaran</h3>
+            <p className={`text-lg md:text-xl font-black tracking-tight ${info?.registrationOpen ? 'text-green-600' : 'text-red-600'}`}>
+              {info?.registrationOpen ? 'DIBUKA' : 'DITUTUP'}
+            </p>
+          </div>
         </div>
+        <button
+          type="button"
+          onClick={handleToggleRegistration}
+          className={`w-full sm:w-auto px-8 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-xl hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 ${
+            info?.registrationOpen 
+              ? 'bg-red-500 text-white shadow-red-500/20 hover:bg-red-600' 
+              : 'bg-green-500 text-white shadow-green-500/20 hover:bg-green-600'
+          }`}
+        >
+          {info?.registrationOpen ? <Lock className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+          {info?.registrationOpen ? 'Tutup Pendaftaran' : 'Buka Pendaftaran'}
+        </button>
+      </div>
 
-        <form onSubmit={handleSave} className="p-4 md:p-12 space-y-6 md:space-y-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between p-4 md:p-6 bg-gray-50 rounded-2xl md:rounded-3xl border border-gray-100 mb-4 md:mb-8 gap-4">
-            <div className="flex items-center gap-3 md:gap-4 w-full sm:w-auto">
-              <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg ${info?.registrationOpen ? 'bg-green-500 shadow-green-500/20' : 'bg-red-500 shadow-red-500/20'}`}>
-                <Users className="h-5 w-5 md:h-6 md:w-6 text-white" />
-              </div>
-              <div>
-                <h3 className="text-[10px] md:text-sm font-black text-gray-400 uppercase tracking-widest">Pendaftaran Pasukan</h3>
-                <p className={`text-lg md:text-xl font-black tracking-tight ${info?.registrationOpen ? 'text-green-600' : 'text-red-600'}`}>
-                  {info?.registrationOpen ? 'DIBUKA' : 'DITUTUP'}
-                </p>
-              </div>
+      <form onSubmit={handleSave} className="space-y-4">
+        {/* Section 1: Maklumat Asas */}
+        <SettingsSection
+          title="Maklumat Asas Kejohanan"
+          icon={<Trophy className="h-5 w-5" />}
+          isOpen={openSections.includes('basic')}
+          onToggle={() => toggleSection('basic')}
+          badge="Nama, Logo & Footer"
+        >
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nama Kejohanan</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:ring-2 focus:ring-matcha focus:border-transparent outline-none transition-all font-bold"
+                required
+              />
             </div>
-            <button
-              type="button"
-              onClick={handleToggleRegistration}
-              className={`w-full sm:w-auto px-6 md:px-8 py-2.5 md:py-3 rounded-xl md:rounded-2xl text-[10px] md:text-sm font-black uppercase tracking-widest transition-all shadow-lg hover:scale-105 active:scale-95 ${
-                info?.registrationOpen 
-                  ? 'bg-red-500 text-white shadow-red-500/20 hover:bg-red-600' 
-                  : 'bg-green-500 text-white shadow-green-500/20 hover:bg-green-600'
-              }`}
-            >
-              {info?.registrationOpen ? 'Tutup Pendaftaran' : 'Buka Pendaftaran'}
-            </button>
-          </div>
-
-          <div className="space-y-1 md:space-y-2">
-            <label className="flex items-center gap-2 text-[10px] md:text-sm font-black text-gray-400 uppercase tracking-widest">
-              <Trophy className="h-3 w-3 md:h-4 md:w-4 text-matcha" />
-              Nama Kejohanan
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Contoh: KEJOHANAN BOLA JARING SEKOLAH RENDAH MSSD TUARAN 2026"
-              className="w-full px-4 py-2.5 md:py-3 bg-gray-50 border border-gray-200 rounded-xl md:rounded-2xl text-sm md:text-base focus:ring-2 focus:ring-matcha focus:border-transparent outline-none transition-all"
-              required
-            />
-          </div>
-
-          <div className="space-y-1 md:space-y-2">
-            <label className="flex items-center gap-2 text-[10px] md:text-sm font-black text-gray-400 uppercase tracking-widest">
-              <Trophy className="h-3 w-3 md:h-4 md:w-4 text-matcha" />
-              URL Logo Kejohanan
-            </label>
-            <input
-              type="text"
-              value={tournamentLogoUrl}
-              onChange={(e) => setTournamentLogoUrl(e.target.value)}
-              placeholder="https://drive.google.com/..."
-              className="w-full px-4 py-2.5 md:py-3 bg-gray-50 border border-gray-200 rounded-xl md:rounded-2xl text-sm md:text-base focus:ring-2 focus:ring-matcha focus:border-transparent outline-none transition-all"
-            />
-          </div>
-
-          <div className="space-y-1 md:space-y-2">
-            <label className="flex items-center gap-2 text-[10px] md:text-sm font-black text-gray-400 uppercase tracking-widest">
-              <Star className="h-3 w-3 md:h-4 md:w-4 text-matcha" />
-              Slogan / Teks Footer
-            </label>
-            <input
-              type="text"
-              value={footerText}
-              onChange={(e) => setFooterText(e.target.value)}
-              placeholder='Contoh: "Majulah Sukan Untuk Negara - MSSD Tuaran"'
-              className="w-full px-4 py-2.5 md:py-3 bg-gray-50 border border-gray-200 rounded-xl md:rounded-2xl text-sm md:text-base focus:ring-2 focus:ring-matcha focus:border-transparent outline-none transition-all"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-            <div className="space-y-4 md:space-y-6">
-              <div className="space-y-1 md:space-y-2">
-                <label className="flex items-center gap-2 text-[10px] md:text-sm font-black text-gray-400 uppercase tracking-widest">
-                  <Building2 className="h-3 w-3 md:h-4 md:w-4 text-matcha" />
-                  Penganjur
-                </label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Penganjur</label>
                 <input
                   type="text"
                   value={organizer}
                   onChange={(e) => setOrganizer(e.target.value)}
-                  placeholder="Contoh: PPD Tuaran"
-                  className="w-full px-4 py-2.5 md:py-3 bg-gray-50 border border-gray-200 rounded-xl md:rounded-2xl text-sm md:text-base focus:ring-2 focus:ring-matcha focus:border-transparent outline-none transition-all"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:ring-2 focus:ring-matcha outline-none transition-all"
                   required
                 />
               </div>
-
-              <div className="space-y-1 md:space-y-2">
-                <label className="flex items-center gap-2 text-[10px] md:text-sm font-black text-gray-400 uppercase tracking-widest">
-                  <Building2 className="h-3 w-3 md:h-4 md:w-4 text-matcha" />
-                  URL Logo Penganjur
-                </label>
-                <input
-                  type="text"
-                  value={organizerLogoUrl}
-                  onChange={(e) => setOrganizerLogoUrl(e.target.value)}
-                  placeholder="https://drive.google.com/..."
-                  className="w-full px-4 py-2.5 md:py-3 bg-gray-50 border border-gray-200 rounded-xl md:rounded-2xl text-sm md:text-base focus:ring-2 focus:ring-matcha focus:border-transparent outline-none transition-all"
-                />
-              </div>
-
-              <div className="space-y-1 md:space-y-2">
-                <label className="flex items-center gap-2 text-[10px] md:text-sm font-black text-gray-400 uppercase tracking-widest">
-                  <User className="h-3 w-3 md:h-4 md:w-4 text-matcha" />
-                  Pengelola
-                </label>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Pengelola</label>
                 <input
                   type="text"
                   value={manager}
                   onChange={(e) => setManager(e.target.value)}
-                  placeholder="Contoh: SK Pekan Tuaran"
-                  className="w-full px-4 py-2.5 md:py-3 bg-gray-50 border border-gray-200 rounded-xl md:rounded-2xl text-sm md:text-base focus:ring-2 focus:ring-matcha focus:border-transparent outline-none transition-all"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1 md:space-y-2">
-                <label className="flex items-center gap-2 text-[10px] md:text-sm font-black text-gray-400 uppercase tracking-widest">
-                  <User className="h-3 w-3 md:h-4 md:w-4 text-matcha" />
-                  URL Logo Pengelola
-                </label>
-                <input
-                  type="text"
-                  value={managerLogoUrl}
-                  onChange={(e) => setManagerLogoUrl(e.target.value)}
-                  placeholder="https://drive.google.com/..."
-                  className="w-full px-4 py-2.5 md:py-3 bg-gray-50 border border-gray-200 rounded-xl md:rounded-2xl text-sm md:text-base focus:ring-2 focus:ring-matcha focus:border-transparent outline-none transition-all"
-                />
-              </div>
-
-              <div className="space-y-1 md:space-y-2">
-                <label className="flex items-center gap-2 text-[10px] md:text-sm font-black text-gray-400 uppercase tracking-widest">
-                  <MapPin className="h-3 w-3 md:h-4 md:w-4 text-matcha" />
-                  Venue Kejohanan
-                </label>
-                <input
-                  type="text"
-                  value={venue}
-                  onChange={(e) => setVenue(e.target.value)}
-                  placeholder="Contoh: Kompleks Sukan Tuaran"
-                  className="w-full px-4 py-2.5 md:py-3 bg-gray-50 border border-gray-200 rounded-xl md:rounded-2xl text-sm md:text-base focus:ring-2 focus:ring-matcha focus:border-transparent outline-none transition-all"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:ring-2 focus:ring-matcha outline-none transition-all"
                   required
                 />
               </div>
             </div>
-
-            <div className="space-y-4 md:space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1 md:space-y-2">
-                  <label className="flex items-center gap-2 text-[10px] md:text-sm font-black text-gray-400 uppercase tracking-widest">
-                    <Calendar className="h-3 w-3 md:h-4 md:w-4 text-pink-dark" />
-                    Tarikh Mula
-                  </label>
-                  <input
-                    type="text"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    placeholder="Contoh: 12 Mac 2026"
-                    className="w-full px-4 py-2.5 md:py-3 bg-gray-50 border border-gray-200 rounded-xl md:rounded-2xl text-sm md:text-base focus:ring-2 focus:ring-matcha focus:border-transparent outline-none transition-all"
-                    required
-                  />
-                </div>
-                <div className="space-y-1 md:space-y-2">
-                  <label className="flex items-center gap-2 text-[10px] md:text-sm font-black text-gray-400 uppercase tracking-widest">
-                    <Calendar className="h-3 w-3 md:h-4 md:w-4 text-pink-dark" />
-                    Tarikh Tamat
-                  </label>
-                  <input
-                    type="text"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    placeholder="Contoh: 14 Mac 2026"
-                    className="w-full px-4 py-2.5 md:py-3 bg-gray-50 border border-gray-200 rounded-xl md:rounded-2xl text-sm md:text-base focus:ring-2 focus:ring-matcha focus:border-transparent outline-none transition-all"
-                  />
-                </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Slogan / Teks Footer</label>
+              <input
+                type="text"
+                value={footerText}
+                onChange={(e) => setFooterText(e.target.value)}
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:ring-2 focus:ring-matcha outline-none transition-all italic"
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Logo Kejohanan (URL)</label>
+                <input type="text" value={tournamentLogoUrl} onChange={(e) => setTournamentLogoUrl(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-matcha" />
               </div>
-
-              <div className="space-y-1 md:space-y-2">
-                <label className="flex items-center gap-2 text-[10px] md:text-sm font-black text-gray-400 uppercase tracking-widest">
-                  <Clock className="h-3 w-3 md:h-4 md:w-4 text-pink-dark" />
-                  Masa Kejohanan
-                </label>
-                <input
-                  type="text"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                  placeholder="Contoh: 8:00 Pagi - 5:00 Petang"
-                  className="w-full px-4 py-2.5 md:py-3 bg-gray-50 border border-gray-200 rounded-xl md:rounded-2xl text-sm md:text-base focus:ring-2 focus:ring-matcha focus:border-transparent outline-none transition-all"
-                  required
-                />
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Logo Penganjur (URL)</label>
+                <input type="text" value={organizerLogoUrl} onChange={(e) => setOrganizerLogoUrl(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-matcha" />
               </div>
-
-              <div className="space-y-1 md:space-y-2">
-                <label className="flex items-center gap-2 text-[10px] md:text-sm font-black text-gray-400 uppercase tracking-widest">
-                  <MapPin className="h-3 w-3 md:h-4 md:w-4 text-pink-dark" />
-                  URL Google Maps (Embed)
-                </label>
-                <input
-                  type="text"
-                  value={mapUrl}
-                  onChange={(e) => setMapUrl(e.target.value)}
-                  placeholder="https://www.google.com/maps/embed?..."
-                  className="w-full px-4 py-2.5 md:py-3 bg-gray-50 border border-gray-200 rounded-xl md:rounded-2xl text-sm md:text-base focus:ring-2 focus:ring-matcha focus:border-transparent outline-none transition-all"
-                />
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Logo Pengelola (URL)</label>
+                <input type="text" value={managerLogoUrl} onChange={(e) => setManagerLogoUrl(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-matcha" />
               </div>
             </div>
           </div>
+        </SettingsSection>
 
-          <div className="bg-blue-gradient p-4 md:p-6 rounded-xl md:rounded-2xl border border-blue-100 space-y-6">
-            <h3 className="text-sm md:text-base font-black text-blue-900 flex items-center gap-2 uppercase tracking-widest">
-              <Clock className="h-4 w-4 md:h-5 md:w-5" />
-              Parameter Penjadualan Automatik
-            </h3>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              <div className="space-y-1 md:space-y-2">
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Masa Perlawanan Kumpulan (Minit)</label>
-                <input
-                  type="number"
-                  value={groupMatchDuration}
-                  onChange={(e) => setGroupMatchDuration(parseInt(e.target.value))}
-                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-matcha"
-                />
+        {/* Section 2: Tarikh & Lokasi */}
+        <SettingsSection
+          title="Tarikh & Lokasi"
+          icon={<Calendar className="h-5 w-5" />}
+          isOpen={openSections.includes('dates')}
+          onToggle={() => toggleSection('dates')}
+          badge="Masa, Venue & Maps"
+        >
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tarikh Mula</label>
+                <input type="text" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:ring-2 focus:ring-matcha outline-none transition-all" required />
               </div>
-              <div className="space-y-1 md:space-y-2">
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Masa Rehat Kumpulan (Minit)</label>
-                <input
-                  type="number"
-                  value={groupBreakDuration}
-                  onChange={(e) => setGroupBreakDuration(parseInt(e.target.value))}
-                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-matcha"
-                />
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tarikh Tamat</label>
+                <input type="text" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:ring-2 focus:ring-matcha outline-none transition-all" />
               </div>
-              <div className="space-y-1 md:space-y-2">
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Masa Perlawanan Kalah Mati (Minit)</label>
-                <input
-                  type="number"
-                  value={knockoutMatchDuration}
-                  onChange={(e) => setKnockoutMatchDuration(parseInt(e.target.value))}
-                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-matcha"
-                />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Masa Kejohanan</label>
+                <input type="text" value={time} onChange={(e) => setTime(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:ring-2 focus:ring-matcha outline-none transition-all" required />
               </div>
-              <div className="space-y-1 md:space-y-2">
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Masa Rehat Kalah Mati (Minit)</label>
-                <input
-                  type="number"
-                  value={knockoutBreakDuration}
-                  onChange={(e) => setKnockoutBreakDuration(parseInt(e.target.value))}
-                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-matcha"
-                />
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Venue Kejohanan</label>
+                <input type="text" value={venue} onChange={(e) => setVenue(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:ring-2 focus:ring-matcha outline-none transition-all" required />
               </div>
-              <div className="space-y-1 md:space-y-2">
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Bilangan Hari</label>
-                <input
-                  type="number"
-                  value={tournamentDays}
-                  onChange={(e) => {
-                    const days = parseInt(e.target.value);
-                    setTournamentDays(days);
-                    const newDates = [...tournamentDates];
-                    while (newDates.length < days) newDates.push('');
-                    setTournamentDates(newDates.slice(0, days));
-                  }}
-                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-matcha"
-                />
-              </div>
-              <div className="space-y-1 md:space-y-2">
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Masa Mula Harian</label>
-                <input
-                  type="time"
-                  value={dailyStartTime}
-                  onChange={(e) => setDailyStartTime(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-matcha"
-                />
-              </div>
-              <div className="space-y-1 md:space-y-2">
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Masa Tamat Harian</label>
-                <input
-                  type="time"
-                  value={dailyEndTime}
-                  onChange={(e) => setDailyEndTime(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-matcha"
-                />
-              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">URL Google Maps (Embed)</label>
+              <input type="text" value={mapUrl} onChange={(e) => setMapUrl(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:ring-2 focus:ring-matcha outline-none transition-all" placeholder="https://www.google.com/maps/embed?..." />
+            </div>
+          </div>
+        </SettingsSection>
 
-              <div className="space-y-1 md:space-y-2">
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Bilangan Kumpulan</label>
-                <input
-                  type="number"
-                  value={numGroups}
-                  onChange={(e) => setNumGroups(parseInt(e.target.value))}
-                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-matcha"
-                />
+        {/* Section 3: Parameter Penjadualan */}
+        <SettingsSection
+          title="Parameter Penjadualan"
+          icon={<Clock className="h-5 w-5" />}
+          isOpen={openSections.includes('scheduling')}
+          onToggle={() => toggleSection('scheduling')}
+          badge="Durasi & Masa Harian"
+        >
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="space-y-2">
+                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Masa Perlawanan (Kump)</label>
+                <div className="flex items-center gap-2">
+                  <input type="number" value={groupMatchDuration} onChange={(e) => setGroupMatchDuration(parseInt(e.target.value))} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-matcha" />
+                  <span className="text-[10px] font-bold text-gray-400">min</span>
+                </div>
               </div>
-
-              <div className="space-y-1 md:space-y-2">
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Bilangan Pasukan Per Kumpulan</label>
-                <input
-                  type="number"
-                  value={teamsPerGroup}
-                  onChange={(e) => setTeamsPerGroup(parseInt(e.target.value))}
-                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-matcha"
-                />
+              <div className="space-y-2">
+                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Masa Rehat (Kump)</label>
+                <div className="flex items-center gap-2">
+                  <input type="number" value={groupBreakDuration} onChange={(e) => setGroupBreakDuration(parseInt(e.target.value))} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-matcha" />
+                  <span className="text-[10px] font-bold text-gray-400">min</span>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Masa Perlawanan (KM)</label>
+                <div className="flex items-center gap-2">
+                  <input type="number" value={knockoutMatchDuration} onChange={(e) => setKnockoutMatchDuration(parseInt(e.target.value))} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-matcha" />
+                  <span className="text-[10px] font-bold text-gray-400">min</span>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Masa Rehat (KM)</label>
+                <div className="flex items-center gap-2">
+                  <input type="number" value={knockoutBreakDuration} onChange={(e) => setKnockoutBreakDuration(parseInt(e.target.value))} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-matcha" />
+                  <span className="text-[10px] font-bold text-gray-400">min</span>
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Bilangan Hari</label>
+                <input type="number" value={tournamentDays} onChange={(e) => {
+                  const days = parseInt(e.target.value);
+                  setTournamentDays(days);
+                  const newDates = [...tournamentDates];
+                  while (newDates.length < days) newDates.push('');
+                  setTournamentDates(newDates.slice(0, days));
+                }} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-matcha" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Masa Mula Harian</label>
+                <input type="time" value={dailyStartTime} onChange={(e) => setDailyStartTime(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-matcha" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Masa Tamat Harian</label>
+                <input type="time" value={dailyEndTime} onChange={(e) => setDailyEndTime(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-matcha" />
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-3 pt-2">
-              <button
-                type="button"
-                onClick={handleSetupGroups}
-                disabled={isSaving}
-                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                <LayoutGrid className="h-4 w-4" />
-                Sediakan Kumpulan
-              </button>
-              <button
-                type="button"
-                onClick={handleAutoDraw}
-                disabled={isDrawing || teams.length === 0 || groups.length === 0}
-                className="flex-1 bg-matcha text-white px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-matcha-dark transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                <RefreshCw className={`h-4 w-4 ${isDrawing ? 'animate-spin' : ''}`} />
-                Undi Pasukan
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Tarikh Kejohanan</label>
+            <div className="space-y-3 pt-4 border-t border-gray-50">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tarikh Spesifik Kejohanan</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {Array.from({ length: tournamentDays }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-gray-400 w-12">Hari {i + 1}:</span>
-                    <input
-                      type="date"
-                      value={tournamentDates[i] || ''}
-                      onChange={(e) => {
-                        const newDates = [...tournamentDates];
-                        newDates[i] = e.target.value;
-                        setTournamentDates(newDates);
-                      }}
-                      className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-matcha"
-                    />
+                  <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                    <span className="text-[10px] font-black text-gray-400 w-12 uppercase">Hari {i + 1}</span>
+                    <input type="date" value={tournamentDates[i] || ''} onChange={(e) => {
+                      const newDates = [...tournamentDates];
+                      newDates[i] = e.target.value;
+                      setTournamentDates(newDates);
+                    }} className="flex-1 bg-transparent text-sm outline-none font-bold" />
                   </div>
                 ))}
               </div>
             </div>
           </div>
+        </SettingsSection>
 
-          <div className="bg-pink-gradient p-4 md:p-6 rounded-xl md:rounded-2xl border border-pink-light space-y-4 md:space-y-6">
-            <h3 className="text-sm md:text-base font-black text-matcha-dark flex items-center gap-2 uppercase tracking-widest">
-              <LinkIcon className="h-4 w-4 md:h-5 md:w-5" />
-              Pautan Pantas (Website/Link)
-            </h3>
+        {/* Section 4: Kumpulan & Undian */}
+        <SettingsSection
+          title="Kumpulan & Undian"
+          icon={<LayoutGrid className="h-5 w-5" />}
+          isOpen={openSections.includes('groups')}
+          onToggle={() => toggleSection('groups')}
+          badge="Setup & Auto Draw"
+        >
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Bilangan Kumpulan</label>
+                <input type="number" value={numGroups} onChange={(e) => setNumGroups(parseInt(e.target.value))} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-matcha" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Pasukan Per Kumpulan</label>
+                <input type="number" value={teamsPerGroup} onChange={(e) => setTeamsPerGroup(parseInt(e.target.value))} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-matcha" />
+              </div>
+            </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4 items-end">
-              <div className="md:col-span-1">
-                <label className="block text-[10px] font-medium text-gray-500 mb-1">Label</label>
-                <input
-                  type="text"
-                  value={newLinkLabel}
-                  onChange={(e) => setNewLinkLabel(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs md:text-sm bg-white"
-                  placeholder="Contoh: Website Rasmi"
-                />
-              </div>
-              <div className="md:col-span-1">
-                <label className="block text-[10px] font-medium text-gray-500 mb-1">URL</label>
-                <input
-                  type="url"
-                  value={newLinkUrl}
-                  onChange={(e) => setNewLinkUrl(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs md:text-sm bg-white"
-                  placeholder="https://..."
-                />
-              </div>
-              <button
-                type="button"
-                onClick={handleAddLink}
-                className="bg-matcha text-white px-4 py-2 rounded-lg hover:bg-matcha-dark transition-all h-[34px] md:h-[38px] self-end text-xs md:text-sm font-bold uppercase tracking-widest"
-              >
-                Tambah
+            <div className="flex flex-wrap gap-3">
+              <button type="button" onClick={handleSetupGroups} disabled={isSaving} className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20">
+                <LayoutGrid className="h-4 w-4" /> Sediakan Kumpulan
               </button>
+              <button type="button" onClick={handleAutoDraw} disabled={isDrawing || teams.length === 0 || groups.length === 0} className="flex-1 bg-matcha text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-matcha-dark transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-matcha/20">
+                <RefreshCw className={`h-4 w-4 ${isDrawing ? 'animate-spin' : ''}`} /> Undi Pasukan
+              </button>
+            </div>
+          </div>
+        </SettingsSection>
+
+        {/* Section 5: Pautan Luar */}
+        <SettingsSection
+          title="Pautan Luar"
+          icon={<LinkIcon className="h-5 w-5" />}
+          isOpen={openSections.includes('links')}
+          onToggle={() => toggleSection('links')}
+          badge="Website & Media Sosial"
+        >
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+              <div className="md:col-span-1 space-y-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Label</label>
+                <input type="text" value={newLinkLabel} onChange={(e) => setNewLinkLabel(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-matcha" placeholder="Contoh: Website Rasmi" />
+              </div>
+              <div className="md:col-span-1 space-y-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">URL</label>
+                <input type="url" value={newLinkUrl} onChange={(e) => setNewLinkUrl(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-matcha" placeholder="https://..." />
+              </div>
+              <button type="button" onClick={handleAddLink} className="bg-matcha text-white px-4 py-2 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-matcha-dark transition-all h-[38px] shadow-lg shadow-matcha/20">Tambah</button>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {links.length === 0 ? (
-                <div className="sm:col-span-2 py-8 text-center text-gray-400 italic bg-white rounded-xl border border-dashed border-gray-200">
-                  Tiada pautan ditambah.
-                </div>
+                <div className="sm:col-span-2 py-10 text-center text-gray-400 italic bg-gray-50 rounded-2xl border border-dashed border-gray-200">Tiada pautan ditambah.</div>
               ) : (
                 links.map((link, index) => (
-                  <div key={index} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-matcha/30 transition-all flex flex-col gap-4">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 flex items-center justify-center bg-matcha/10 text-matcha rounded-xl shrink-0">
+                  <div key={index} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 flex items-center justify-center bg-matcha/10 text-matcha rounded-xl">
                         <LinkIcon className="h-5 w-5" />
                       </div>
                       <div className="flex flex-col min-w-0">
@@ -934,111 +846,93 @@ export default function TournamentManagement() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 pt-2 border-t border-gray-50">
-                      <a 
-                        href={link.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="flex-1 flex items-center justify-center gap-2 bg-matcha/10 text-matcha py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-matcha hover:text-white transition-all"
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                        Buka
-                      </a>
-                      <button 
-                        type="button" 
-                        onClick={() => removeLink(index)} 
-                        className="flex items-center justify-center gap-2 bg-red-50 text-red-500 px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                        Padam
-                      </button>
+                      <a href={link.url} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 bg-matcha/10 text-matcha py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-matcha hover:text-white transition-all"><ExternalLink className="h-3 w-3" /> Buka</a>
+                      <button type="button" onClick={() => removeLink(index)} className="flex items-center justify-center gap-2 bg-red-50 text-red-500 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all"><Trash2 className="h-3 w-3" /> Padam</button>
                     </div>
                   </div>
                 ))
               )}
             </div>
           </div>
+        </SettingsSection>
 
-          <div className="pt-6 md:pt-8 border-t border-gray-100 flex flex-col gap-4">
-            {notification.show && (
-              <div className={`fixed top-4 right-4 z-[100] p-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300 ${
-                notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-              }`}>
-                {notification.type === 'success' ? <CheckCircle className="h-5 w-5" /> : <X className="h-5 w-5" />}
-                <span className="font-bold">{notification.message}</span>
-              </div>
-            )}
+        {/* Section 6: Kawalan Bahaya */}
+        <SettingsSection
+          title="Kawalan Bahaya"
+          icon={<AlertTriangle className="h-5 w-5" />}
+          isOpen={openSections.includes('danger')}
+          onToggle={() => toggleSection('danger')}
+          badge="Reset & Pembersihan Data"
+        >
+          <div className="space-y-6">
+            <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
+              <p className="text-red-600 text-xs font-bold leading-relaxed">
+                <AlertTriangle className="h-4 w-4 inline mr-2 mb-1" />
+                AMARAN: Tindakan ini akan memadam SEMUA data pasukan, perlawanan, dan kumpulan. Data yang dipadam tidak boleh dikembalikan.
+              </p>
+            </div>
             
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button
-                type="submit"
-                disabled={isSaving}
-                className="flex-1 bg-matcha-gradient text-white py-3 md:py-4 rounded-xl md:rounded-2xl text-xs md:text-sm font-black uppercase tracking-widest shadow-xl hover:opacity-90 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-              >
-                <Save className="h-5 w-5 md:h-6 md:w-6" />
-                {isSaving ? 'Menyimpan...' : 'Simpan Maklumat'}
-              </button>
+            {!showResetConfirm ? (
               <button
                 type="button"
-                onClick={generatePDF}
-                className="flex-1 bg-white border-2 border-matcha text-matcha py-3 md:py-4 rounded-xl md:rounded-2xl text-xs md:text-sm font-black uppercase tracking-widest shadow-lg hover:bg-matcha hover:text-white transition-all flex items-center justify-center gap-3"
+                onClick={() => setShowResetConfirm(true)}
+                className="w-full bg-red-500 text-white py-4 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-red-600 transition-all shadow-xl shadow-red-500/20 flex items-center justify-center gap-2"
               >
-                <FileDown className="h-5 w-5 md:h-6 md:w-6" />
-                Cetak PDF Penuh
+                <RefreshCw className="h-4 w-4" /> Reset Kejohanan
               </button>
-            </div>
-
-            <div className="pt-4 border-t border-gray-100">
-              {!showResetConfirm ? (
-                <button
-                  type="button"
-                  onClick={() => setShowResetConfirm(true)}
-                  className="w-full bg-red-50 text-red-500 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all flex items-center justify-center gap-2"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Reset Kejohanan
-                </button>
-              ) : (
-                <div className="bg-red-50 p-4 rounded-xl border border-red-100 space-y-4 animate-in zoom-in-95 duration-200">
-                  <div className="flex items-center gap-2 text-red-600">
-                    <Lock className="h-4 w-4" />
-                    <span className="text-xs font-black uppercase tracking-widest">Pengesahan Reset</span>
-                  </div>
-                  <p className="text-[10px] text-red-500 font-bold uppercase leading-relaxed">
-                    Tindakan ini akan memadam semua data pendaftaran pasukan, kumpulan, dan jadual perlawanan. Sila masukkan kata laluan khas untuk meneruskan.
-                  </p>
-                  <div className="flex gap-2">
-                    <input
-                      type="password"
-                      value={resetPassword}
-                      onChange={(e) => setResetPassword(e.target.value)}
-                      placeholder="Kata Laluan Khas"
-                      className="flex-1 px-3 py-2 bg-white border border-red-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-red-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleResetTournament}
-                      disabled={isResetting}
-                      className="bg-red-500 text-white px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-red-600 disabled:opacity-50"
-                    >
-                      {isResetting ? 'Sila Tunggu...' : 'Padam Semua'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowResetConfirm(false);
-                        setResetPassword('');
-                      }}
-                      className="bg-gray-200 text-gray-600 px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-gray-300"
-                    >
-                      Batal
-                    </button>
-                  </div>
+            ) : (
+              <div className="space-y-4 animate-in zoom-in duration-300">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-red-600 uppercase tracking-widest ml-1">Masukkan Kata Laluan Reset</label>
+                  <input
+                    type="password"
+                    value={resetPassword}
+                    onChange={(e) => setResetPassword(e.target.value)}
+                    className="w-full px-4 py-3 bg-white border-2 border-red-200 rounded-2xl text-sm focus:ring-2 focus:ring-red-500 outline-none transition-all"
+                    placeholder="Sila masukkan kata laluan..."
+                  />
                 </div>
-              )}
-            </div>
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => { setShowResetConfirm(false); setResetPassword(''); }} className="flex-1 bg-gray-100 text-gray-600 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-200 transition-all">Batal</button>
+                  <button type="button" onClick={handleResetTournament} disabled={isResetting} className="flex-1 bg-red-600 text-white py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg shadow-red-600/20 flex items-center justify-center gap-2">
+                    {isResetting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                    Sahkan Reset
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-        </form>
-      </div>
+        </SettingsSection>
+
+        <div className="pt-8 flex flex-col sm:flex-row gap-4">
+          <button
+            type="submit"
+            disabled={isSaving}
+            className="flex-1 bg-matcha-gradient text-white py-4 rounded-2xl md:rounded-[2rem] text-sm font-black uppercase tracking-[0.2em] shadow-2xl hover:opacity-90 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+          >
+            <Save className="h-6 w-6" />
+            {isSaving ? 'Menyimpan...' : 'Simpan Semua Tetapan'}
+          </button>
+          <button
+            type="button"
+            onClick={generatePDF}
+            className="flex-1 bg-white border-2 border-matcha text-matcha py-4 rounded-2xl md:rounded-[2rem] text-sm font-black uppercase tracking-[0.2em] shadow-xl hover:bg-matcha hover:text-white transition-all flex items-center justify-center gap-3"
+          >
+            <FileDown className="h-6 w-6" />
+            Cetak Laporan PDF
+          </button>
+        </div>
+      </form>
+
+      {notification.show && (
+        <div className={`fixed top-4 right-4 z-[100] p-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300 ${
+          notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+        }`}>
+          {notification.type === 'success' ? <CheckCircle className="h-5 w-5" /> : <X className="h-5 w-5" />}
+          <span className="font-bold">{notification.message}</span>
+        </div>
+      )}
     </div>
   );
 }
+

@@ -23,23 +23,23 @@ export default function Dashboard() {
   const tabs = isUrusetia ? urusetiaTabs : pengurusTabs;
 
   return (
-    <div className="space-y-4 md:space-y-8">
-      <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-pink-light">
-        <div className="flex items-center justify-between mb-4 md:mb-6">
-          <div className="flex items-center space-x-2 md:space-x-3">
-            {isUrusetia ? <Settings className="h-5 w-5 md:h-6 md:w-6 text-matcha" /> : <UserCircle className="h-5 w-5 md:h-6 md:w-6 text-matcha" />}
-            <h2 className="text-lg md:text-2xl font-bold text-gray-800">{isUrusetia ? 'Panel Urusetia' : 'Panel Pengurus Pasukan'}</h2>
+    <div className="space-y-4 md:space-y-6">
+      <div className="sticky top-[64px] sm:top-[80px] z-40 bg-white/80 backdrop-blur-md p-3 md:p-4 rounded-2xl shadow-md border border-pink-light">
+        <div className="flex items-center justify-between mb-3 md:mb-4 px-2">
+          <div className="flex items-center space-x-2">
+            {isUrusetia ? <Settings className="h-4 w-4 md:h-5 md:w-5 text-matcha" /> : <UserCircle className="h-4 w-4 md:h-5 md:w-5 text-matcha" />}
+            <h2 className="text-sm md:text-lg font-black text-gray-800 uppercase tracking-tight">{isUrusetia ? 'Panel Urusetia' : 'Panel Pengurus'}</h2>
           </div>
           <button 
             onClick={() => auth.signOut()}
-            className="text-xs md:text-sm font-bold text-red-500 hover:text-red-700 transition-colors"
+            className="text-[10px] md:text-xs font-black text-red-500 hover:text-red-700 transition-colors uppercase tracking-widest"
           >
             Log Keluar
           </button>
         </div>
         
-        <div className="lg:hidden mb-6">
-          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-1">Navigasi Panel</label>
+        {/* Mobile Nav */}
+        <div className="lg:hidden">
           <div className="relative">
             <select
               value={location.pathname}
@@ -47,7 +47,7 @@ export default function Dashboard() {
                 const path = e.target.value;
                 window.location.href = path;
               }}
-              className="w-full pl-4 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-matcha focus:border-transparent outline-none font-bold text-gray-700 text-sm appearance-none shadow-sm"
+              className="w-full pl-4 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-matcha focus:border-transparent outline-none font-bold text-gray-700 text-xs appearance-none shadow-sm"
             >
               {tabs.map((tab) => (
                 <option key={tab.path} value={tab.path}>
@@ -56,30 +56,31 @@ export default function Dashboard() {
               ))}
             </select>
             <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-              <LayoutGrid className="h-4 w-4 text-gray-400" />
+              <LayoutGrid className="h-3.5 w-3.5 text-gray-400" />
             </div>
           </div>
         </div>
 
-        <div className="hidden lg:flex flex-wrap gap-4 border-b border-gray-100 pb-6">
+        {/* Desktop Nav - 2 Rows */}
+        <div className="hidden lg:grid grid-cols-3 gap-2">
           {tabs.map((tab) => (
             <Link
               key={tab.path}
               to={tab.path}
-              className={`flex items-center space-x-2.5 px-6 py-3 rounded-xl text-sm font-bold transition-all ${
+              className={`flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
                 location.pathname === tab.path
-                  ? 'bg-matcha text-white shadow-lg shadow-matcha/20 scale-105'
-                  : 'bg-gray-50 text-gray-500 hover:bg-matcha/10 hover:text-matcha'
+                  ? 'bg-matcha text-white border-matcha shadow-lg shadow-matcha/20'
+                  : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-matcha/10 hover:text-matcha hover:border-matcha/20'
               }`}
             >
-              <tab.icon className={`h-4.5 w-4.5 ${location.pathname === tab.path ? 'text-white' : 'text-matcha'}`} />
+              <tab.icon className={`h-4 w-4 ${location.pathname === tab.path ? 'text-white' : 'text-matcha'}`} />
               <span>{tab.name}</span>
             </Link>
           ))}
         </div>
       </div>
 
-      <div className="bg-white p-4 md:p-8 rounded-2xl shadow-sm border border-pink-light min-h-[400px]">
+      <div className="bg-white p-4 md:p-8 rounded-3xl shadow-sm border border-pink-light min-h-[400px]">
         <Outlet />
       </div>
     </div>
