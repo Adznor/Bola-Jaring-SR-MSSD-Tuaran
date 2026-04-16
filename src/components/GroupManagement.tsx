@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, handleFirestoreError, OperationType } from '../firebase';
 import { Team, Group } from '../types';
-import { Plus, Trash2, LayoutGrid, Users, ArrowRightLeft, X } from 'lucide-react';
+import { Plus, Trash2, LayoutGrid, Users, ArrowRightLeft, X, CheckCircle, AlertTriangle } from 'lucide-react';
 
 export default function GroupManagement() {
   const [teams, setTeams] = useState<Team[]>([]);
@@ -10,6 +10,12 @@ export default function GroupManagement() {
   const [newGroupName, setNewGroupName] = useState('');
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; ids: string[]; message: string }>({ show: false, ids: [], message: '' });
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3000);
+  };
 
   useEffect(() => {
     const unsubTeams = onSnapshot(collection(db, 'teams'), (snapshot) => {
@@ -24,11 +30,17 @@ export default function GroupManagement() {
   const handleAddGroup = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Auto-generate group name
-    const nextLetter = String.fromCharCode(65 + groups.length); // 65 is 'A'
-    const autoName = `Kumpulan ${nextLetter}`;
-    
-    await addDoc(collection(db, 'groups'), { name: autoName });
+    try {
+      // Auto-generate group name
+      const nextLetter = String.fromCharCode(65 + groups.length); // 65 is 'A'
+      const autoName = `Kumpulan ${nextLetter}`;
+      
+      await addDoc(collection(db, 'groups'), { name: autoName });
+      showNotification(`Kumpulan ${nextLetter} berjaya ditambah.`);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'groups');
+      showNotification('Ralat semasa menambah kumpulan.', 'error');
+    }
   };
 
   const handleDeleteGroup = (id: string) => {
@@ -54,15 +66,19 @@ export default function GroupManagement() {
         // Clear groupId for teams in this group
         const teamsInGroup = teams.filter(t => t.groupId === id);
         for (const team of teamsInGroup) {
-          await updateDoc(doc(db, 'teams', team.id), { groupId: null });
+          await updateDoc(doc(db, 'teams', team.id), { 
+            groupId: null,
+            groupPosition: null
+          });
         }
         await deleteDoc(doc(db, 'groups', id));
       }
       setSelectedGroups(prev => prev.filter(id => !deleteConfirm.ids.includes(id)));
       setDeleteConfirm({ show: false, ids: [], message: '' });
+      showNotification('Kumpulan berjaya dipadam.');
     } catch (err) {
-      console.error('Error deleting groups:', err);
-      alert('Ralat semasa memadam kumpulan.');
+      handleFirestoreError(err, OperationType.DELETE, 'groups');
+      showNotification('Ralat semasa memadam kumpulan.', 'error');
     }
   };
 
@@ -73,10 +89,21 @@ export default function GroupManagement() {
   };
 
   const handleAssignTeam = async (teamId: string, groupId: string | null) => {
-    await updateDoc(doc(db, 'teams', teamId), { 
-      groupId: groupId || null,
-      groupPosition: groupId ? (teams.filter(t => t.groupId === groupId).length + 1) : null
-    });
+    try {
+      await updateDoc(doc(db, 'teams', teamId), { 
+        groupId: groupId || null,
+        groupPosition: groupId ? (teams.filter(t => t.groupId === groupId).length + 1) : null
+      });
+      if (!groupId) {
+        showNotification('Pasukan berjaya dikeluarkan dari kumpulan.');
+      } else {
+        const groupName = groups.find(g => g.id === groupId)?.name || 'kumpulan';
+        showNotification(`Pasukan berjaya dimasukkan ke ${groupName}.`);
+      }
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, 'teams');
+      showNotification('Ralat semasa mengemaskini kumpulan pasukan.', 'error');
+    }
   };
 
   const sortedGroups = [...groups].sort((a, b) => a.name.localeCompare(b.name));
@@ -90,6 +117,16 @@ export default function GroupManagement() {
 
   return (
     <div className="space-y-6 md:space-y-8">
+      {/* Notification */}
+      {notification && (
+        <div className={`fixed top-4 right-4 z-[100] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300 ${
+          notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+        }`}>
+          {notification.type === 'success' ? <CheckCircle className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}
+          <p className="font-bold text-sm">{notification.message}</p>
+        </div>
+      )}
+
       <div className="bg-pink-gradient p-4 md:p-6 rounded-xl border border-pink-light">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
           <h4 className="text-base md:text-lg font-bold text-matcha-dark flex items-center gap-2">

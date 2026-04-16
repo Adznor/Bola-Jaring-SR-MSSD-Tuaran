@@ -40,7 +40,8 @@ service cloud.firestore {
              (!('managerName' in data) || (data.managerName is string && data.managerName.size() < 100)) &&
              (!('phone' in data) || (data.phone is string && data.phone.size() < 20)) &&
              (!('logoUrl' in data) || (data.logoUrl is string && data.logoUrl.size() < 500)) &&
-             (!('groupId' in data) || data.groupId is string) &&
+             (!('groupId' in data) || data.groupId == null || data.groupId is string) &&
+             (!('groupPosition' in data) || data.groupPosition == null || data.groupPosition is number) &&
              (!('uid' in data) || data.uid is string) &&
              data.players is list && data.players.size() >= 7 && data.players.size() <= 12;
     }
