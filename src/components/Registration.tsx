@@ -136,6 +136,7 @@ export default function Registration() {
       logoUrl: logoUrl,
       players,
       createdAt: editingTeam?.createdAt || Date.now(),
+      uid: editingTeam?.uid || user?.uid,
     };
 
     try {
@@ -210,6 +211,28 @@ export default function Registration() {
     setSelectedTeams(prev => 
       prev.includes(id) ? prev.filter(tid => tid !== id) : [...prev, id]
     );
+  };
+
+  const handleDownloadCSV = () => {
+    const data = teams.map((team, index) => ({
+      'Bil': index + 1,
+      'Nama Pasukan': team.name,
+      'Nama Pengurus': team.managerName || '-',
+      'No Telefon': team.phone || '-',
+      'Bilangan Pemain': team.players.length,
+      'Senarai Pemain': team.players.map(p => `${p.name} (${p.position})`).join('; ')
+    }));
+
+    const csv = Papa.unparse(data);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `senarai_pasukan_mssd_tuaran_${new Date().toLocaleDateString()}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleBulkUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -335,6 +358,14 @@ export default function Registration() {
             <div className="flex gap-2">
               {isUrusetia && (
                 <>
+                  <button
+                    onClick={handleDownloadCSV}
+                    className="flex-1 md:flex-none bg-white border border-matcha text-matcha px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg flex items-center justify-center gap-1.5 sm:gap-2 hover:bg-matcha hover:text-white transition-all shadow-sm text-[10px] sm:text-sm font-bold"
+                    title="Muat Turun Senarai Pasukan (CSV)"
+                  >
+                    <Download className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">Muat Turun CSV</span>
+                  </button>
                   <button
                     onClick={downloadTemplate}
                     className="flex-1 md:flex-none bg-blue-50 text-blue-600 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg flex items-center justify-center gap-1.5 sm:gap-2 hover:bg-blue-100 transition-all shadow-sm text-[10px] sm:text-sm font-bold"
@@ -468,198 +499,213 @@ export default function Registration() {
       )}
 
       {showForm && (
-        <div className="bg-pink-gradient p-4 md:p-6 rounded-xl border border-pink-light animate-in slide-in-from-top-4 duration-300">
-          <div className="flex justify-between items-center mb-4 md:mb-6">
-            <h4 className="text-base md:text-lg font-bold text-matcha-dark">
-              {editingTeam ? 'Kemaskini Pasukan' : 'Daftar Pasukan Baru'}
-            </h4>
-            <button onClick={resetForm} className="text-gray-400 hover:text-gray-600 p-1">
-              <X className="h-5 w-5 md:h-6 md:w-6" />
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
-              <div>
-                <label className="block text-[9px] sm:text-sm font-medium text-gray-700 mb-1">Nama Pasukan</label>
-                <input
-                  type="text"
-                  value={teamName}
-                  onChange={(e) => setTeamName(e.target.value)}
-                  className="w-full px-3 sm:px-4 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-matcha focus:border-transparent text-[11px] sm:text-base"
-                  placeholder="Contoh: Tuaran Tigers"
-                  required
-                />
-              </div>
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-[9px] sm:text-sm font-medium text-gray-700">URL Logo (Opsional)</label>
-                  <a 
-                    href="https://drive.google.com/drive/u/0/folders/1OczjDcEDwrgaPiT3jQjQMK3BsXvvagNu" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-[7px] sm:text-[10px] font-bold text-matcha hover:underline flex items-center gap-1"
-                  >
-                    <Zap className="h-2 w-2 sm:h-3 sm:w-3" /> Muat Naik
-                  </a>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white w-full max-w-4xl rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl border border-pink-light overflow-hidden animate-in zoom-in duration-300 flex flex-col my-auto">
+            <div className="bg-matcha-gradient p-6 sm:p-8 text-white relative shrink-0">
+              <button 
+                onClick={resetForm}
+                className="absolute top-4 right-4 sm:top-6 sm:right-6 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-all z-20"
+                title="Tutup"
+              >
+                <X className="h-5 w-5 sm:h-6 sm:w-6" />
+              </button>
+              <div className="flex items-center gap-4 sm:gap-6">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30 shrink-0">
+                  <UserPlus className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
                 </div>
-                <input
-                  type="url"
-                  value={logoUrl}
-                  onChange={(e) => setLogoUrl(e.target.value)}
-                  disabled={!isUrusetia}
-                  className={`w-full px-3 sm:px-4 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-matcha focus:border-transparent text-[11px] sm:text-base ${!isUrusetia ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                  placeholder="https://example.com/logo.png"
-                />
-                {!isUrusetia && (
-                  <p className="text-[7px] sm:text-[10px] text-gray-400 mt-0.5 italic">URL Logo hanya boleh dikemaskini oleh Urusetia.</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-[9px] sm:text-sm font-medium text-gray-700 mb-1">Nama Pengurus</label>
-                <input
-                  type="text"
-                  value={managerName}
-                  onChange={(e) => setManagerName(e.target.value)}
-                  className="w-full px-3 sm:px-4 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-matcha focus:border-transparent text-[11px] sm:text-base"
-                  placeholder="Nama Pengurus"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-[9px] sm:text-sm font-medium text-gray-700 mb-1">No. Telefon</label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full px-3 sm:px-4 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-matcha focus:border-transparent text-[11px] sm:text-base"
-                  placeholder="012-3456789"
-                  required
-                />
+                <div>
+                  <h3 className="text-xl sm:text-3xl font-black tracking-tight uppercase leading-tight">
+                    {editingTeam ? 'Kemaskini Pasukan' : 'Daftar Pasukan Baru'}
+                  </h3>
+                  <p className="text-matcha-light font-bold tracking-widest text-[10px] sm:text-sm mt-0.5 sm:mt-1 uppercase">Sila lengkapkan maklumat pasukan di bawah</p>
+                </div>
               </div>
             </div>
 
-            <div className="border-t border-pink-light pt-4 md:pt-6">
-              <h5 className="font-bold text-gray-800 mb-3 md:mb-4 flex items-center gap-2 text-sm md:text-base">
-                <UserPlus className="h-4 w-4 text-matcha" />
-                Senarai Pemain ({players.length}/12)
-              </h5>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4 items-end">
-                <div className="md:col-span-2">
-                  <label className="block text-[10px] font-medium text-gray-500 mb-1">Nama Penuh</label>
-                  <input
-                    type="text"
-                    value={newPlayerName}
-                    onChange={(e) => setNewPlayerName(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs md:text-sm"
-                    placeholder="Nama Pemain"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <label className="block text-[10px] font-medium text-gray-500 mb-1">Posisi</label>
-                    <select
-                      value={newPlayerPos}
-                      onChange={(e) => setNewPlayerPos(e.target.value as Position)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs md:text-sm"
-                    >
-                      {POSITIONS.map(pos => <option key={pos} value={pos}>{pos}</option>)}
-                    </select>
+            <div className="p-4 sm:p-10 overflow-y-auto custom-scrollbar flex-1 bg-white">
+              <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Nama Pasukan</label>
+                      <input
+                        type="text"
+                        value={teamName}
+                        onChange={(e) => setTeamName(e.target.value)}
+                        className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-matcha focus:border-transparent outline-none font-bold text-gray-700 text-xs sm:text-sm shadow-sm"
+                        placeholder="Contoh: Tuaran Tigers"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="block text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-widest">URL Logo (Opsional)</label>
+                        <a 
+                          href="https://drive.google.com/drive/u/0/folders/1OczjDcEDwrgaPiT3jQjQMK3BsXvvagNu" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-[8px] sm:text-[10px] font-black text-matcha hover:underline flex items-center gap-1 uppercase"
+                        >
+                          <Zap className="h-2 w-2 sm:h-3 sm:w-3" /> Muat Naik
+                        </a>
+                      </div>
+                      <input
+                        type="url"
+                        value={logoUrl}
+                        onChange={(e) => setLogoUrl(e.target.value)}
+                        disabled={!isUrusetia}
+                        className={`w-full px-4 sm:px-6 py-3 sm:py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-matcha focus:border-transparent outline-none font-bold text-gray-700 text-xs sm:text-sm shadow-sm ${!isUrusetia ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        placeholder="https://example.com/logo.png"
+                      />
+                      {!isUrusetia && (
+                        <p className="text-[8px] sm:text-[10px] text-gray-400 mt-2 italic font-medium">URL Logo hanya boleh dikemaskini oleh Urusetia.</p>
+                      )}
+                    </div>
                   </div>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Nama Pengurus</label>
+                      <input
+                        type="text"
+                        value={managerName}
+                        onChange={(e) => setManagerName(e.target.value)}
+                        className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-matcha focus:border-transparent outline-none font-bold text-gray-700 text-xs sm:text-sm shadow-sm"
+                        placeholder="Nama Pengurus"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-widest mb-2">No. Telefon</label>
+                      <input
+                        type="tel"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-matcha focus:border-transparent outline-none font-bold text-gray-700 text-xs sm:text-sm shadow-sm"
+                        placeholder="012-3456789"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-100 pt-8 sm:pt-10">
+                  <div className="flex items-center justify-between mb-6 sm:mb-8">
+                    <h5 className="font-black text-gray-800 flex items-center gap-3 text-sm sm:text-lg uppercase tracking-tight">
+                      <Users className="h-5 w-5 sm:h-6 sm:w-6 text-matcha" />
+                      Senarai Pemain ({players.length}/12)
+                    </h5>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8 items-end bg-gray-50 p-4 sm:p-6 rounded-3xl border border-gray-100">
+                    <div className="md:col-span-2">
+                      <label className="block text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Nama Penuh Pemain</label>
+                      <input
+                        type="text"
+                        value={newPlayerName}
+                        onChange={(e) => setNewPlayerName(e.target.value)}
+                        className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-matcha outline-none font-bold text-gray-700 text-xs sm:text-sm"
+                        placeholder="Nama Pemain"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label className="block text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Posisi</label>
+                        <select
+                          value={newPlayerPos}
+                          onChange={(e) => setNewPlayerPos(e.target.value as Position)}
+                          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-matcha outline-none font-bold text-gray-700 text-xs sm:text-sm appearance-none"
+                        >
+                          {POSITIONS.map(pos => <option key={pos} value={pos}>{pos}</option>)}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAddPlayer}
+                        className={`${editingPlayerIndex !== null ? 'bg-blue-500 shadow-blue-500/20' : 'bg-matcha-gradient shadow-matcha/20'} text-white px-6 py-3 rounded-xl hover:opacity-90 transition-all h-[46px] self-end text-xs sm:text-sm font-black uppercase tracking-widest shadow-lg flex items-center gap-2`}
+                      >
+                        {editingPlayerIndex !== null ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                        <span>{editingPlayerIndex !== null ? 'Simpan' : 'Tambah'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm">
+                    <div className="overflow-x-auto custom-scrollbar">
+                      <table className="w-full text-xs sm:text-sm">
+                        <thead className="bg-gray-50 text-[10px] sm:text-xs font-black uppercase text-gray-400 tracking-widest">
+                          <tr>
+                            <th className="px-4 sm:px-6 py-4 text-left w-16">Bil</th>
+                            <th className="px-4 sm:px-6 py-4 text-left">Nama Pemain</th>
+                            <th className="px-4 py-4 text-center">Posisi</th>
+                            <th className="px-4 sm:px-6 py-4 text-center w-24">Aksi</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                          {players.map((p, i) => ({ ...p, originalIndex: i }))
+                            .sort((a, b) => POSITION_ORDER.indexOf(a.position) - POSITION_ORDER.indexOf(b.position) || a.name.localeCompare(b.name))
+                            .map((p, i) => (
+                            <tr key={p.originalIndex} className={`${editingPlayerIndex === p.originalIndex ? 'bg-blue-50/50' : 'hover:bg-gray-50/50'} transition-colors`}>
+                              <td className="px-4 sm:px-6 py-4 text-gray-400 font-bold">{i + 1}</td>
+                              <td className="px-4 sm:px-6 py-4 font-bold text-gray-700 uppercase tracking-wide">{p.name}</td>
+                              <td className="px-4 py-4 text-center">
+                                <span className="bg-matcha text-white px-3 py-1 rounded-lg text-[10px] sm:text-xs font-black shadow-sm">{p.position}</span>
+                              </td>
+                              <td className="px-4 sm:px-6 py-4 text-center">
+                                <div className="flex items-center justify-center gap-2">
+                                  <button 
+                                    type="button" 
+                                    onClick={() => handleEditPlayer(p.originalIndex)} 
+                                    className="text-blue-400 hover:text-blue-600 p-2 bg-blue-50 rounded-lg transition-all hover:scale-110"
+                                    title="Edit Pemain"
+                                  >
+                                    <Edit2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                  </button>
+                                  <button 
+                                    type="button" 
+                                    onClick={() => handleRemovePlayer(p.originalIndex)} 
+                                    className="text-red-400 hover:text-red-600 p-2 bg-red-50 rounded-lg transition-all hover:scale-110"
+                                    title="Padam Pemain"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                          {players.length === 0 && (
+                            <tr>
+                              <td colSpan={4} className="px-6 py-12 text-center text-gray-400 italic font-medium">Tiada pemain didaftarkan</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row justify-end gap-3 pt-8 sm:pt-10 border-t border-gray-100">
                   <button
                     type="button"
-                    onClick={handleAddPlayer}
-                    className={`${editingPlayerIndex !== null ? 'bg-blue-500' : 'bg-matcha-gradient'} text-white px-4 py-2 rounded-lg hover:opacity-90 transition-colors h-[34px] md:h-[38px] self-end text-xs md:text-sm font-bold flex items-center gap-2`}
+                    onClick={resetForm}
+                    className="order-2 sm:order-1 px-8 py-4 bg-gray-100 text-gray-500 rounded-2xl font-black uppercase tracking-widest hover:bg-gray-200 transition-all text-xs sm:text-sm"
                   >
-                    {editingPlayerIndex !== null ? <Save className="h-3 w-3 sm:h-4 sm:w-4" /> : null}
-                    {editingPlayerIndex !== null ? 'Simpan' : 'Tambah'}
+                    Batal
                   </button>
-                  {editingPlayerIndex !== null && (
-                    <button
-                      type="button"
-                      onClick={handleCancelPlayerEdit}
-                      className="bg-gray-200 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors h-[34px] md:h-[38px] self-end text-xs md:text-sm font-bold"
-                    >
-                      Batal
-                    </button>
-                  )}
+                  <button
+                    type="submit"
+                    className="order-1 sm:order-2 bg-matcha-gradient text-white px-10 py-4 rounded-2xl font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-lg shadow-matcha/20 text-xs sm:text-sm flex items-center justify-center gap-2"
+                  >
+                    <Save className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <span>Simpan Pasukan</span>
+                  </button>
                 </div>
-              </div>
-
-              <div className="bg-white rounded-lg overflow-hidden border border-gray-100 overflow-x-auto scrollbar-hide">
-                <table className="w-full text-[9px] sm:text-sm">
-                  <thead className="bg-gray-50 text-[7px] sm:text-xs font-bold uppercase text-gray-500">
-                    <tr>
-                      <th className="px-2 sm:px-4 py-2 text-left w-8">Bil</th>
-                      <th className="px-2 sm:px-4 py-2 text-left">Nama</th>
-                      <th className="px-2 py-2 text-center">Posisi</th>
-                      <th className="px-2 sm:px-4 py-2 text-center w-20">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {players.map((p, i) => ({ ...p, originalIndex: i }))
-                      .sort((a, b) => POSITION_ORDER.indexOf(a.position) - POSITION_ORDER.indexOf(b.position) || a.name.localeCompare(b.name))
-                      .map((p, i) => (
-                      <tr key={p.originalIndex} className={editingPlayerIndex === p.originalIndex ? 'bg-blue-50' : ''}>
-                        <td className="px-2 sm:px-4 py-2 text-gray-500">{i + 1}</td>
-                        <td className="px-2 sm:px-4 py-2 font-medium truncate max-w-[80px] sm:max-w-none">{p.name}</td>
-                        <td className="px-2 py-2 text-center">
-                          <span className="bg-matcha-gradient text-white px-1 sm:px-2 py-0.5 rounded text-[7px] sm:text-xs font-bold">{p.position}</span>
-                        </td>
-                        <td className="px-2 sm:px-4 py-2 text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <button 
-                              type="button" 
-                              onClick={() => handleEditPlayer(p.originalIndex)} 
-                              className="text-blue-400 hover:text-blue-600 p-1"
-                              title="Edit Pemain"
-                            >
-                              <Edit2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                            </button>
-                            <button 
-                              type="button" 
-                              onClick={() => handleRemovePlayer(p.originalIndex)} 
-                              className="text-red-400 hover:text-red-600 p-1"
-                              title="Padam Pemain"
-                            >
-                              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                    {players.length === 0 && (
-                      <tr>
-                        <td colSpan={4} className="px-4 py-6 sm:py-8 text-center text-gray-400 italic text-[10px] sm:text-sm">Tiada pemain didaftarkan</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              </form>
             </div>
-
-            <div className="flex flex-col md:flex-row justify-end gap-2 md:gap-3 pt-4 border-t border-pink-light">
-              <button
-                type="button"
-                onClick={resetForm}
-                className="order-2 md:order-1 px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-xs md:text-sm font-bold"
-              >
-                Batal
-              </button>
-              <button
-                type="submit"
-                className="order-1 md:order-2 bg-matcha-gradient hover:opacity-90 text-white px-8 py-2 rounded-lg flex items-center justify-center gap-2 transition-all shadow-md text-xs md:text-sm font-bold"
-              >
-                <Save className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                <span>Simpan Pasukan</span>
-              </button>
-            </div>
-          </form>
+          </div>
         </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-3 sm:gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
         {teams.map((team) => {
           const isSelected = selectedTeams.includes(team.id);
           return (
@@ -672,11 +718,18 @@ export default function Registration() {
                   handleTeamClick(team);
                 }
               }}
-              className={`bg-white border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all relative cursor-pointer ${isSelected ? 'border-pink ring-1 ring-pink' : 'border-pink-light'}`}
+              className={`group relative overflow-hidden rounded-2xl transition-all duration-300 hover:scale-[1.02] hover:shadow-xl cursor-pointer h-32 sm:h-40 ${
+                isSelected ? 'ring-4 ring-pink ring-offset-2 shadow-2xl' : 'border border-pink-light shadow-sm'
+              }`}
             >
-              <div className="bg-pink-gradient p-2 sm:p-4 border-b border-pink-light flex justify-between items-start">
-                <div className="flex items-center gap-1.5 sm:gap-3">
-                  {isUrusetia && (
+              {/* Full color background with subtle pattern */}
+              <div className="absolute inset-0 bg-matcha-gradient"></div>
+              <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-from)_0%,_transparent_70%)] from-white"></div>
+              
+              <div className="relative h-full p-3 sm:p-4 flex flex-col items-center text-center text-white">
+                {/* Top Actions (Checkbox) */}
+                {isUrusetia && (
+                  <div className="absolute top-2 right-2 z-10">
                     <input 
                       type="checkbox" 
                       checked={isSelected}
@@ -684,30 +737,49 @@ export default function Registration() {
                         e.stopPropagation();
                         toggleTeamSelection(team.id);
                       }}
-                      className="w-3 h-3 sm:w-4 sm:h-4 rounded border-gray-300 text-pink focus:ring-pink cursor-pointer"
+                      className="w-3.5 h-3.5 rounded border-white/30 text-pink focus:ring-pink cursor-pointer bg-white/20 transition-transform hover:scale-110"
                     />
-                  )}
-                  {team.logoUrl ? (
-                    <img src={team.logoUrl} alt={team.name} className="h-6 w-6 sm:h-10 sm:w-10 object-contain bg-white rounded-lg p-0.5 sm:p-1 border border-pink-light" referrerPolicy="no-referrer" />
-                  ) : (
-                    <div className="h-6 w-6 sm:h-10 sm:w-10 bg-white rounded-lg p-0.5 sm:p-1 border border-pink-light flex items-center justify-center">
-                      <Users className="h-3 w-3 sm:h-6 sm:w-6 text-matcha opacity-30" />
-                    </div>
-                  )}
-                  <h4 className="font-bold text-gray-800 text-[10px] sm:text-base break-words leading-tight flex items-center gap-2">
-                    <span>{team.name}</span>
-                    <span className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 bg-matcha text-white rounded-full flex items-center justify-center text-[8px] sm:text-xs font-black shadow-sm">
-                      {team.players.length}
-                    </span>
-                  </h4>
-                </div>
-                {isUrusetia && (
-                  <div className="flex gap-1">
-                    <button onClick={(e) => { e.stopPropagation(); handleDelete(team.id); }} className="text-red-400 hover:text-red-600 p-0.5">
-                      <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                    </button>
                   </div>
                 )}
+
+                {/* Logo - More compact */}
+                <div className="mb-2 sm:mb-3 shrink-0">
+                  {team.logoUrl ? (
+                    <img src={team.logoUrl} alt={team.name} className="h-12 w-12 sm:h-16 sm:w-16 object-contain bg-white rounded-xl p-1.5 shadow-lg border border-white/20" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="h-12 w-12 sm:h-16 sm:w-16 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/30 shadow-lg">
+                      <Users className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Team Name & Info - Tighter */}
+                <div className="flex-1 w-full overflow-hidden flex flex-col justify-center">
+                  <h4 className="font-black text-[10px] sm:text-sm uppercase tracking-tight leading-tight mb-1 line-clamp-2">
+                    {team.name}
+                  </h4>
+                  <div className="flex items-center justify-center gap-1.5">
+                    <span className="px-2 py-0.5 bg-white/20 backdrop-blur-sm text-white rounded-md text-[7px] sm:text-[9px] font-black border border-white/10 uppercase">
+                      {team.players.length} PEMAIN
+                    </span>
+                  </div>
+                </div>
+
+                {/* Bottom Actions (Trash) - Integrated neatly */}
+                {isUrusetia && (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); handleDelete(team.id); }} 
+                    className="absolute bottom-2 right-2 bg-red-500 hover:bg-red-600 text-white p-1.5 sm:p-2 rounded-lg shadow-lg transition-all hover:scale-110 border border-white/20"
+                    title="Padam Pasukan"
+                  >
+                    <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                  </button>
+                )}
+
+                {/* Decorative Element - More subtle */}
+                <div className="absolute bottom-2 left-3">
+                  <span className="text-[6px] sm:text-[8px] font-black opacity-40 uppercase tracking-[0.2em] pointer-events-none">MSSD TUARAN</span>
+                </div>
               </div>
             </div>
           );

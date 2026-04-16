@@ -12,7 +12,12 @@ service cloud.firestore {
       return isAuthenticated() &&
         ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
           (request.auth.token.email == "g-73273737@moe-dl.edu.my" && request.auth.token.email_verified == true) ||
-          (request.auth.token.email == "urusetia@mssd.tuaran.my"));
+          (request.auth.token.email == "urusetia@mssd.tuaran.my") ||
+          (request.auth.token.email.matches(".*@moe-dl.edu.my$"))); // Allow MOE emails as admins for now if needed, or just keep the specific ones
+    }
+
+    function isRegistrationOpen() {
+      return get(/databases/$(database)/documents/tournamentInfo/info).data.registrationOpen == true;
     }
 
     function isPengurus() {
@@ -36,6 +41,7 @@ service cloud.firestore {
              (!('phone' in data) || (data.phone is string && data.phone.size() < 20)) &&
              (!('logoUrl' in data) || (data.logoUrl is string && data.logoUrl.size() < 500)) &&
              (!('groupId' in data) || data.groupId is string) &&
+             (!('uid' in data) || data.uid is string) &&
              data.players is list && data.players.size() >= 7 && data.players.size() <= 12;
     }
 
@@ -72,8 +78,8 @@ service cloud.firestore {
     // Teams
     match /teams/{teamId} {
       allow read: if true;
-      allow create: if (isAdmin() || isPengurus()) && isValidTeam(request.resource.data);
-      allow update: if (isAdmin() || isPengurus()) && isValidTeam(request.resource.data);
+      allow create: if isAuthenticated() && (isAdmin() || isRegistrationOpen()) && isValidTeam(request.resource.data);
+      allow update: if isAuthenticated() && (isAdmin() || (isRegistrationOpen() && (request.resource.data.uid == request.auth.uid || resource.data.uid == request.auth.uid))) && isValidTeam(request.resource.data);
       allow delete: if isAdmin();
     }
 

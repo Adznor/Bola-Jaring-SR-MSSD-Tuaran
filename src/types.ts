@@ -17,6 +17,7 @@ export interface Team {
   players: Player[];
   logoUrl?: string;
   createdAt?: number;
+  uid?: string;
 }
 
 export interface Group {

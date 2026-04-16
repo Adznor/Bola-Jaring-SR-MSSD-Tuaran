@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { collection, onSnapshot, addDoc, updateDoc, doc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, updateDoc, doc, deleteDoc, getDocs, writeBatch, setDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { TournamentInfo as TournamentInfoType, TournamentLink, Team, Match, Group, Position } from '../types';
 import { Save, Info, Building2, User, Calendar, Clock, MapPin, Trophy, Users, Link as LinkIcon, Plus, Trash2, Star, CheckCircle, X, ExternalLink, FileDown, RefreshCw, Lock, LayoutGrid, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
@@ -94,10 +94,9 @@ export default function TournamentManagement() {
   };
 
   const handleToggleRegistration = async () => {
-    if (!info?.id) return;
     try {
-      await updateDoc(doc(db, 'tournamentInfo', info.id), {
-        registrationOpen: !info.registrationOpen
+      await updateDoc(doc(db, 'tournamentInfo', 'info'), {
+        registrationOpen: !info?.registrationOpen
       });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, 'tournamentInfo');
@@ -105,9 +104,9 @@ export default function TournamentManagement() {
   };
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'tournamentInfo'), (snapshot) => {
-      if (!snapshot.empty) {
-        const data = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as TournamentInfoType;
+    const unsub = onSnapshot(doc(db, 'tournamentInfo', 'info'), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = { id: snapshot.id, ...snapshot.data() } as TournamentInfoType;
         setInfo(data);
         setName(data.name || '');
         setOrganizer(data.organizer || '');
@@ -540,11 +539,7 @@ export default function TournamentManagement() {
     };
 
     try {
-      if (info?.id) {
-        await updateDoc(doc(db, 'tournamentInfo', info.id), data);
-      } else {
-        await addDoc(collection(db, 'tournamentInfo'), data);
-      }
+      await setDoc(doc(db, 'tournamentInfo', 'info'), data);
       showNotification('Maklumat kejohanan berjaya disimpan.');
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'tournamentInfo');
