@@ -425,6 +425,12 @@ export default function TournamentManagement() {
       return;
     }
 
+    const allTeamsAssigned = teams.length > 0 && teams.every(t => t.groupId);
+    if (allTeamsAssigned) {
+      showNotification('Semua pasukan telah diundi masuk ke dalam kumpulan. Sila reset kejohanan jika ingin menukar struktur kumpulan.', 'error');
+      return;
+    }
+
     setIsSaving(true);
     try {
       const batch = writeBatch(db);
@@ -453,6 +459,12 @@ export default function TournamentManagement() {
   const handleAutoDraw = async () => {
     if (teams.length === 0 || groups.length === 0) {
       showNotification('Sila pastikan pasukan dan kumpulan telah didaftarkan.', 'error');
+      return;
+    }
+
+    const allTeamsAssigned = teams.every(t => t.groupId);
+    if (allTeamsAssigned) {
+      showNotification('Semua pasukan telah diundi masuk ke dalam kumpulan.', 'error');
       return;
     }
 

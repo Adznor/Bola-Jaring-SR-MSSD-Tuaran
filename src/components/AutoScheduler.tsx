@@ -47,6 +47,12 @@ export default function AutoScheduler() {
       return;
     }
 
+    const finishedGroupMatches = matches.filter(m => m.stage === 'group' && m.status === 'finished');
+    if (finishedGroupMatches.length > 0) {
+      showNotification('Jadual peringkat kumpulan tidak boleh dijana semula kerana terdapat perlawanan yang sudah tamat.', 'error');
+      return;
+    }
+
     setIsGenerating(true);
     try {
       const batch = writeBatch(db);
@@ -157,6 +163,12 @@ export default function AutoScheduler() {
   };
 
   const generateKnockoutSchedule = async () => {
+    const finishedKoMatches = matches.filter(m => ['quarter', 'semi', 'third_place', 'final'].includes(m.stage) && m.status === 'finished');
+    if (finishedKoMatches.length > 0) {
+      showNotification('Jadual peringkat kalah mati tidak boleh dijana semula kerana terdapat perlawanan yang sudah tamat.', 'error');
+      return;
+    }
+
     // 1. Calculate standings for all groups
     const standingsByGroup: { [key: string]: any[] } = {};
     
