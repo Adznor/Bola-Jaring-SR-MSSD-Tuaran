@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { Team, Player, Position, TournamentInfo, POSITION_ORDER, Group } from '../types';
@@ -328,6 +328,15 @@ export default function Registration() {
     link.click();
     document.body.removeChild(link);
   };
+
+  const sortedTeams = useMemo(() => {
+    return [...teams].sort((a, b) => {
+      const timeA = a.createdAt || 0;
+      const timeB = b.createdAt || 0;
+      if (timeA !== timeB) return timeA - timeB;
+      return a.name.localeCompare(b.name);
+    });
+  }, [teams]);
 
   return (
     <div className="space-y-6">
@@ -706,7 +715,7 @@ export default function Registration() {
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-        {teams.map((team) => {
+        {sortedTeams.map((team) => {
           const isSelected = selectedTeams.includes(team.id);
           return (
             <div 

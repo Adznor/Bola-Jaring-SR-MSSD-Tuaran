@@ -121,7 +121,10 @@ export default function PublicView() {
       .sort((a, b) => {
         if (b.points !== a.points) return b.points - a.points;
         if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
-        return b.goalsFor - a.goalsFor;
+        if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+        const teamA = teams.find(t => t.id === a.teamId);
+        const teamB = teams.find(t => t.id === b.teamId);
+        return (teamA?.groupPosition || 0) - (teamB?.groupPosition || 0);
       });
   };
 
@@ -130,11 +133,14 @@ export default function PublicView() {
     const groupTeams = teams.filter(t => t.groupId === groupId);
     const groupStats = Array.from(standings.values()).filter(s => groupTeams.some(gt => gt.id === s.teamId));
     
-    // Sort by points, then goal difference, then goals for
+    // Sort by points, then goal difference, then goals for, then registration order
     const sortedStats = [...groupStats].sort((a, b) => {
       if (b.points !== a.points) return b.points - a.points;
       if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
-      return b.goalsFor - a.goalsFor;
+      if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+      const teamA = teams.find(t => t.id === a.teamId);
+      const teamB = teams.find(t => t.id === b.teamId);
+      return (teamA?.groupPosition || 0) - (teamB?.groupPosition || 0);
     });
 
     const rank = sortedStats.findIndex(s => s.teamId === teamId) + 1;
@@ -203,7 +209,10 @@ export default function PublicView() {
       .sort((a, b) => {
         if (b.points !== a.points) return b.points - a.points;
         if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
-        return b.goalsFor - a.goalsFor;
+        if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+        const teamA = teams.find(t => t.id === a.teamId);
+        const teamB = teams.find(t => t.id === b.teamId);
+        return (teamA?.groupPosition || 0) - (teamB?.groupPosition || 0);
       });
 
     const tempatKelima = quarterLosers.length > 0 ? teams.find(t => t.id === quarterLosers[0].teamId) : undefined;
@@ -230,7 +239,10 @@ export default function PublicView() {
         if (stageB !== stageA) return stageB - stageA;
         if (b.points !== a.points) return b.points - a.points;
         if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
-        return b.goalsFor - a.goalsFor;
+        if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+        const teamA = teams.find(t => t.id === a.teamId);
+        const teamB = teams.find(t => t.id === b.teamId);
+        return (teamA?.groupPosition || 0) - (teamB?.groupPosition || 0);
       })
       .map((s, index) => ({
         rank: index + 6,

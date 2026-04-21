@@ -35,7 +35,7 @@ export default function GroupMatrix() {
 
   const groupData = useMemo(() => {
     return groups.map(group => {
-      const groupTeams = teams.filter(t => t.groupId === group.id).sort((a, b) => a.name.localeCompare(b.name));
+      const groupTeams = teams.filter(t => t.groupId === group.id).sort((a, b) => (a.groupPosition || 0) - (b.groupPosition || 0));
       const groupMatches = matches.filter(m => m.groupId === group.id && m.stage === 'group');
       
       return {

@@ -123,7 +123,7 @@ export default function Stats() {
       .sort((a, b) => {
         const timeA = a.createdAt || 0;
         const timeB = b.createdAt || 0;
-        if (timeB !== timeA) return timeB - timeA;
+        if (timeA !== timeB) return timeA - timeB;
         return a.name.localeCompare(b.name);
       });
   }, [teams, searchTerm]);

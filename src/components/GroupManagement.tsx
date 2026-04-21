@@ -110,7 +110,7 @@ export default function GroupManagement() {
   const sortedTeams = [...teams].sort((a, b) => {
     const timeA = a.createdAt || 0;
     const timeB = b.createdAt || 0;
-    if (timeB !== timeA) return timeB - timeA;
+    if (timeA !== timeB) return timeA - timeB;
     return a.name.localeCompare(b.name);
   });
   const unassignedTeams = sortedTeams.filter(t => !t.groupId);
@@ -192,9 +192,9 @@ export default function GroupManagement() {
             Senarai Kumpulan
           </h4>
           <div className="grid grid-cols-1 gap-4">
-            {sortedGroups.map((group) => {
-              const groupTeams = sortedTeams.filter(t => t.groupId === group.id);
-              const groupLetter = group.name.split(' ').pop()?.charAt(0) || group.name.charAt(0);
+              {sortedGroups.map((group) => {
+                const groupTeams = sortedTeams.filter(t => t.groupId === group.id).sort((a, b) => (a.groupPosition || 0) - (b.groupPosition || 0));
+                const groupLetter = group.name.split(' ').pop()?.charAt(0) || group.name.charAt(0);
               const isSelected = selectedGroups.includes(group.id);
               
               return (
