@@ -152,19 +152,41 @@ export default function Registration() {
       return;
     }
 
-    const teamData = {
-      name: teamName,
-      managerName,
-      phone,
-      logoUrl: logoUrl,
-      players,
-      createdAt: editingTeam?.createdAt || Date.now(),
-      uid: editingTeam?.uid || user?.uid,
+    const playersList = players.map(p => ({
+      name: p.name || '',
+      position: p.position || 'C'
+    }));
+
+    const teamData: any = {
+      name: teamName.trim(),
+      managerName: managerName.trim() || '',
+      phone: phone.trim() || '',
+      logoUrl: logoUrl.trim() || '',
+      players: playersList,
+      updatedAt: Date.now()
     };
+    
+    // Ensure we don't send undefined to Firestore
+    if (editingTeam?.createdAt) {
+      teamData.createdAt = editingTeam.createdAt;
+    } else {
+      teamData.createdAt = Date.now();
+    }
+    
+    if (editingTeam?.uid) {
+      teamData.uid = editingTeam.uid;
+    } else if (user?.uid) {
+      teamData.uid = user.uid;
+    }
+
+    // Keep existing metadata if present
+    if (editingTeam?.groupId) teamData.groupId = editingTeam.groupId;
+    if (editingTeam?.groupPosition) teamData.groupPosition = editingTeam.groupPosition;
 
     try {
       if (editingTeam) {
-        await updateDoc(doc(db, 'teams', editingTeam.id), teamData);
+        const teamRef = doc(db, 'teams', editingTeam.id);
+        await updateDoc(teamRef, teamData);
         showNotification('Pasukan berjaya dikemaskini!', 'success');
       } else {
         await addDoc(collection(db, 'teams'), teamData);
@@ -173,7 +195,8 @@ export default function Registration() {
       resetForm();
     } catch (err) {
       console.error('Error saving team:', err);
-      showNotification('Ralat semasa menyimpan maklumat.', 'error');
+      handleFirestoreError(err, editingTeam ? OperationType.UPDATE : OperationType.CREATE, 'teams');
+      showNotification('Ralat semasa menyimpan maklumat. Sila cuba lagi.', 'error');
     }
   };
 

@@ -38,11 +38,13 @@ service cloud.firestore {
     function isValidTeam(data) {
       return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              (!('managerName' in data) || (data.managerName is string && data.managerName.size() < 100)) &&
-             (!('phone' in data) || (data.phone is string && data.phone.size() < 20)) &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() < 50)) &&
              (!('logoUrl' in data) || (data.logoUrl is string && data.logoUrl.size() < 500)) &&
              (!('groupId' in data) || data.groupId == null || data.groupId is string) &&
              (!('groupPosition' in data) || data.groupPosition == null || data.groupPosition is number) &&
              (!('uid' in data) || data.uid is string) &&
+             (!('createdAt' in data) || data.createdAt is number) &&
+             (!('updatedAt' in data) || data.updatedAt is number) &&
              data.players is list && data.players.size() >= 7 && data.players.size() <= 12;
     }
 
