@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { useNavigate, Outlet, Link, useLocation } from 'react-router-dom';
 import { Users, LayoutGrid, CalendarDays, Settings, UserCircle, Trophy, Zap, ChevronUp, ChevronDown } from 'lucide-react';
 import { auth } from '../firebase';
 
 export default function Dashboard() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isNavVisible, setIsNavVisible] = useState(true);
   const user = auth.currentUser;
   const isUrusetia = user?.email === 'urusetia@mssd.tuaran.my';
@@ -57,8 +58,7 @@ export default function Dashboard() {
               <select
                 value={location.pathname || ''}
                 onChange={(e) => {
-                  const path = e.target.value;
-                  window.location.href = path;
+                  navigate(e.target.value);
                 }}
                 className="w-full pl-4 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-matcha focus:border-transparent outline-none font-bold text-gray-700 text-xs appearance-none shadow-sm"
               >

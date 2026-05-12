@@ -17,15 +17,19 @@ service cloud.firestore {
     }
 
     function isRegistrationOpen() {
-      return get(/databases/$(database)/documents/tournamentInfo/info).data.registrationOpen == true;
+      let infoRef = /databases/$(database)/documents/tournamentInfo/info;
+      return exists(infoRef) && get(infoRef).data.registrationOpen == true;
     }
 
     function isPengurus() {
       return isAuthenticated() && request.auth.token.email == "pengurus@mssd.tuaran.my";
     }
 
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+    function isTeamOwner(teamData) {
+      return teamData.uid == request.auth.uid || 
+             !('uid' in teamData) || 
+             teamData.uid == null || 
+             teamData.uid == "";
     }
 
     function hasOnlyAllowedFields(fields) {
@@ -42,7 +46,7 @@ service cloud.firestore {
              (!('logoUrl' in data) || (data.logoUrl is string && data.logoUrl.size() < 500)) &&
              (!('groupId' in data) || data.groupId == null || data.groupId is string) &&
              (!('groupPosition' in data) || data.groupPosition == null || data.groupPosition is number) &&
-             (!('uid' in data) || data.uid is string) &&
+             (!('uid' in data) || data.uid is string || data.uid == null) &&
              (!('createdAt' in data) || data.createdAt is number) &&
              (!('updatedAt' in data) || data.updatedAt is number) &&
              data.players is list && data.players.size() >= 7 && data.players.size() <= 12;
@@ -82,7 +86,10 @@ service cloud.firestore {
     match /teams/{teamId} {
       allow read: if true;
       allow create: if isAuthenticated() && (isAdmin() || isRegistrationOpen()) && isValidTeam(request.resource.data);
-      allow update: if isAuthenticated() && (isAdmin() || (isRegistrationOpen() && (request.resource.data.uid == request.auth.uid || resource.data.uid == request.auth.uid))) && isValidTeam(request.resource.data);
+      allow update: if isAuthenticated() && (
+        isAdmin() || 
+        (isRegistrationOpen() && isTeamOwner(resource.data) && (request.resource.data.uid == request.auth.uid || !('uid' in request.resource.data)))
+      ) && isValidTeam(request.resource.data);
       allow delete: if isAdmin();
     }
 

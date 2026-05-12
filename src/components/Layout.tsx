@@ -87,13 +87,23 @@ export default function Layout({ user }: { user: User | null }) {
               )}
             </nav>
 
-            {/* Mobile Menu Button */}
-            <div className="lg:hidden flex items-center">
+            {/* Mobile Menu Button + Direct Login for Mobile */}
+            <div className="lg:hidden flex items-center gap-2">
+              {!user && (
+                <Link 
+                  to="/login" 
+                  className="p-2 bg-white/20 hover:bg-white/30 rounded-xl transition-all"
+                  title="Log Masuk"
+                >
+                  <LogIn className="h-5 w-5" />
+                </Link>
+              )}
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="inline-flex items-center justify-center p-1.5 rounded-md text-white hover:bg-matcha-dark focus:outline-none transition-colors"
+                className="flex items-center justify-center h-10 w-10 sm:h-11 sm:w-11 rounded-xl text-white hover:bg-matcha-dark focus:outline-none transition-all active:scale-95 bg-white/10"
+                aria-label="Menu"
               >
-                {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
               </button>
             </div>
           </div>

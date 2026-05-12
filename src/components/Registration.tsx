@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { Team, Player, Position, TournamentInfo, POSITION_ORDER, Group } from '../types';
-import { Plus, Trash2, Edit2, X, Save, UserPlus, Users, AlertCircle, CheckCircle, Zap, FileUp, Download } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, Save, UserPlus, Users, AlertCircle, CheckCircle, Zap, FileUp, Download, RefreshCw } from 'lucide-react';
 import Papa from 'papaparse';
 
 const POSITIONS: Position[] = ['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'];
@@ -24,9 +24,11 @@ export default function Registration() {
   const [notification, setNotification] = useState<{ show: boolean; message: string; type: 'success' | 'error' }>({ show: false, message: '', type: 'success' });
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; ids: string[]; message: string }>({ show: false, ids: [], message: '' });
   const [tournamentInfo, setTournamentInfo] = useState<TournamentInfo | null>(null);
+  const [isInfoLoaded, setIsInfoLoaded] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [showTeamDetails, setShowTeamDetails] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const unsubTeams = onSnapshot(collection(db, 'teams'), (snapshot) => {
@@ -43,12 +45,14 @@ export default function Registration() {
       handleFirestoreError(error, OperationType.GET, 'teams');
     });
 
-    const unsubInfo = onSnapshot(collection(db, 'tournamentInfo'), (snapshot) => {
-      if (!snapshot.empty) {
-        setTournamentInfo({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as TournamentInfo);
+    const unsubInfo = onSnapshot(doc(db, 'tournamentInfo', 'info'), (snapshot) => {
+      if (snapshot.exists()) {
+        setTournamentInfo({ id: snapshot.id, ...snapshot.data() } as TournamentInfo);
       }
+      setIsInfoLoaded(true);
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'tournamentInfo');
+      setIsInfoLoaded(true);
     });
 
     const unsubGroups = onSnapshot(collection(db, 'groups'), (snapshot) => {
@@ -64,8 +68,8 @@ export default function Registration() {
 
   const user = auth.currentUser;
   const isUrusetia = user?.email === 'urusetia@mssd.tuaran.my';
-  const isRegistrationOpen = tournamentInfo?.registrationOpen ?? true;
-  const canRegister = isUrusetia || isRegistrationOpen;
+  const isRegistrationOpen = tournamentInfo?.registrationOpen ?? false;
+  const canRegister = isUrusetia || (isInfoLoaded && isRegistrationOpen);
 
   const handleTeamClick = (team: Team) => {
     if (isRegistrationOpen || isUrusetia) {
@@ -132,6 +136,7 @@ export default function Registration() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
 
     if (editingPlayerIndex !== null) {
       const confirmSave = confirm("Anda mempunyai maklumat atlet yang belum disimpan (sedang diedit). Adakah anda mahu batalkan edit atlet tersebut dan simpan maklumat pasukan?");
@@ -152,6 +157,8 @@ export default function Registration() {
       return;
     }
 
+    setIsSubmitting(true);
+
     const playersList = players.map(p => ({
       name: p.name || '',
       position: p.position || 'C'
@@ -166,19 +173,24 @@ export default function Registration() {
       updatedAt: Date.now()
     };
     
-    // Ensure we don't send undefined to Firestore
+    // Ensure UID is set for managers to pass firestore rules
+    if (!isUrusetia) {
+      teamData.uid = user?.uid;
+    } else {
+      // Urusetia keeps original UID or sets one if missing
+      if (editingTeam?.uid) {
+        teamData.uid = editingTeam.uid;
+      } else if (user?.uid) {
+        teamData.uid = user.uid;
+      }
+    }
+    
     if (editingTeam?.createdAt) {
       teamData.createdAt = editingTeam.createdAt;
     } else {
       teamData.createdAt = Date.now();
     }
     
-    if (editingTeam?.uid) {
-      teamData.uid = editingTeam.uid;
-    } else if (user?.uid) {
-      teamData.uid = user.uid;
-    }
-
     // Keep existing metadata if present
     if (editingTeam?.groupId) teamData.groupId = editingTeam.groupId;
     if (editingTeam?.groupPosition) teamData.groupPosition = editingTeam.groupPosition;
@@ -193,10 +205,17 @@ export default function Registration() {
         showNotification('Pasukan berjaya didaftarkan!', 'success');
       }
       resetForm();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving team:', err);
-      handleFirestoreError(err, editingTeam ? OperationType.UPDATE : OperationType.CREATE, 'teams');
-      showNotification('Ralat semasa menyimpan maklumat. Sila cuba lagi.', 'error');
+      // Handle the case where user might not have permission explicitly
+      if (err.code === 'permission-denied') {
+        showNotification('Ralat: Tiada kebenaran untuk akses (Pendaftaran mungkin telah ditutup).', 'error');
+      } else {
+        handleFirestoreError(err, editingTeam ? OperationType.UPDATE : OperationType.CREATE, 'teams');
+        showNotification('Ralat semasa menyimpan maklumat. Sila cuba lagi.', 'error');
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -786,10 +805,15 @@ export default function Registration() {
                   </button>
                   <button
                     type="submit"
-                    className="order-1 sm:order-2 bg-matcha-gradient text-white px-10 py-4 rounded-2xl font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-lg shadow-matcha/20 text-xs sm:text-sm flex items-center justify-center gap-2"
+                    disabled={isSubmitting}
+                    className="order-1 sm:order-2 bg-matcha-gradient text-white px-10 py-4 rounded-2xl font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-lg shadow-matcha/20 text-xs sm:text-sm flex items-center justify-center gap-2 disabled:opacity-50"
                   >
-                    <Save className="h-4 w-4 sm:h-5 sm:w-5" />
-                    <span>Simpan Pasukan</span>
+                    {isSubmitting ? (
+                      <RefreshCw className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4 sm:h-5 sm:w-5" />
+                    )}
+                    <span>{isSubmitting ? 'Menyimpan...' : 'Simpan Pasukan'}</span>
                   </button>
                 </div>
               </form>
