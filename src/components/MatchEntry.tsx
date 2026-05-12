@@ -1118,19 +1118,35 @@ export default function MatchEntry() {
                         {getFilteredTeams(stage, teamAId, teamBId).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                       </select>
                       
-                      <div className="space-y-2 md:space-y-3">
-                        <div className="flex gap-2">
-                          <select value={newScorerNameA || ''} onChange={(e) => setNewScorerNameA(e.target.value)} className="flex-1 px-2 md:px-3 py-1.5 md:py-2 bg-white border border-gray-200 rounded-xl text-[10px] md:text-sm">
+                      <div className="space-y-3 md:space-y-4">
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <select 
+                            value={newScorerNameA || ''} 
+                            onChange={(e) => setNewScorerNameA(e.target.value)} 
+                            className="w-full sm:flex-1 px-3 py-2 bg-white border border-gray-200 rounded-xl text-[10px] md:text-sm outline-none focus:ring-2 focus:ring-magenta"
+                          >
                             <option value="">Tambah Penjaring</option>
                             {[...getTeamPlayers(teamAId)]
                               .sort((a, b) => POSITION_ORDER.indexOf(a.position) - POSITION_ORDER.indexOf(b.position) || a.name.localeCompare(b.name))
                               .map(p => <option key={p.name} value={p.name}>{p.name} ({p.position})</option>)}
                           </select>
-                          <input type="number" value={newScorerGoalsA} onChange={(e) => setNewScorerGoalsA(parseInt(e.target.value))} className="w-12 md:w-16 px-1 md:px-2 py-1.5 md:py-2 bg-white border border-gray-200 rounded-xl text-[10px] md:text-sm" min="1" />
-                          <button type="button" onClick={() => handleAddScorer(teamAId, newScorerNameA, newScorerGoalsA)} className="bg-[#004d00] text-white px-3 md:px-4 py-1.5 md:py-2 rounded-xl hover:bg-[#003300] transition-all font-bold flex items-center gap-1 shadow-lg shadow-green-900/20">
-                            <Plus className="h-4 w-4" />
-                            <span className="text-[10px] uppercase tracking-widest hidden sm:inline">Tambah</span>
-                          </button>
+                          <div className="flex gap-2 w-full sm:w-auto">
+                            <input 
+                              type="number" 
+                              value={newScorerGoalsA} 
+                              onChange={(e) => setNewScorerGoalsA(parseInt(e.target.value))} 
+                              className="w-16 sm:w-20 px-2 py-2 bg-white border border-gray-200 rounded-xl text-[10px] md:text-sm outline-none focus:ring-2 focus:ring-magenta" 
+                              min="1" 
+                            />
+                            <button 
+                              type="button" 
+                              onClick={() => handleAddScorer(teamAId, newScorerNameA, newScorerGoalsA)} 
+                              className="flex-1 sm:flex-none bg-[#004d00] text-white px-4 py-2 rounded-xl hover:bg-[#003300] transition-all font-bold flex items-center justify-center gap-1 shadow-lg shadow-green-900/20"
+                            >
+                              <Plus className="h-4 w-4" />
+                              <span className="text-[10px] uppercase tracking-widest">Tambah</span>
+                            </button>
+                          </div>
                         </div>
                         <div className="space-y-1">
                           {scorers.filter(s => s.teamId === teamAId).map((s, i) => (
@@ -1153,19 +1169,35 @@ export default function MatchEntry() {
                         {getFilteredTeams(stage, teamBId, teamAId).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                       </select>
 
-                      <div className="space-y-2 md:space-y-3">
-                        <div className="flex gap-2">
-                          <select value={newScorerNameB || ''} onChange={(e) => setNewScorerNameB(e.target.value)} className="flex-1 px-2 md:px-3 py-1.5 md:py-2 bg-white border border-gray-200 rounded-xl text-[10px] md:text-sm">
+                      <div className="space-y-3 md:space-y-4">
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <select 
+                            value={newScorerNameB || ''} 
+                            onChange={(e) => setNewScorerNameB(e.target.value)} 
+                            className="w-full sm:flex-1 px-3 py-2 bg-white border border-gray-200 rounded-xl text-[10px] md:text-sm outline-none focus:ring-2 focus:ring-magenta"
+                          >
                             <option value="">Tambah Penjaring</option>
                             {[...getTeamPlayers(teamBId)]
                               .sort((a, b) => POSITION_ORDER.indexOf(a.position) - POSITION_ORDER.indexOf(b.position) || a.name.localeCompare(b.name))
                               .map(p => <option key={p.name} value={p.name}>{p.name} ({p.position})</option>)}
                           </select>
-                          <input type="number" value={newScorerGoalsB} onChange={(e) => setNewScorerGoalsB(parseInt(e.target.value))} className="w-12 md:w-16 px-1 md:px-2 py-1.5 md:py-2 bg-white border border-gray-200 rounded-xl text-[10px] md:text-sm" min="1" />
-                          <button type="button" onClick={() => handleAddScorer(teamBId, newScorerNameB, newScorerGoalsB)} className="bg-[#004d00] text-white px-3 md:px-4 py-1.5 md:py-2 rounded-xl hover:bg-[#003300] transition-all font-bold flex items-center gap-1 shadow-lg shadow-green-900/20">
-                            <Plus className="h-4 w-4" />
-                            <span className="text-[10px] uppercase tracking-widest hidden sm:inline">Tambah</span>
-                          </button>
+                          <div className="flex gap-2 w-full sm:w-auto">
+                            <input 
+                              type="number" 
+                              value={newScorerGoalsB} 
+                              onChange={(e) => setNewScorerGoalsB(parseInt(e.target.value))} 
+                              className="w-12 md:w-16 px-1 md:px-2 py-1.5 md:py-2 bg-white border border-gray-200 rounded-xl text-[10px] md:text-sm outline-none focus:ring-2 focus:ring-magenta" 
+                              min="1" 
+                            />
+                            <button 
+                              type="button" 
+                              onClick={() => handleAddScorer(teamBId, newScorerNameB, newScorerGoalsB)} 
+                              className="flex-1 sm:flex-none bg-[#004d00] text-white px-4 py-2 rounded-xl hover:bg-[#003300] transition-all font-bold flex items-center justify-center gap-1 shadow-lg shadow-green-900/20"
+                            >
+                              <Plus className="h-4 w-4" />
+                              <span className="text-[10px] uppercase tracking-widest">Tambah</span>
+                            </button>
+                          </div>
                         </div>
                         <div className="space-y-1">
                           {scorers.filter(s => s.teamId === teamBId).map((s, i) => (

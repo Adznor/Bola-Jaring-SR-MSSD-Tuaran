@@ -84,12 +84,14 @@ export default function Registration() {
       updatedPlayers[editingPlayerIndex] = { name: newPlayerName, position: newPlayerPos };
       setPlayers(updatedPlayers);
       setEditingPlayerIndex(null);
+      showNotification('Atlet berjaya dikemaskini.', 'success');
     } else {
       if (players.length >= 12) {
-        alert('Maksimum 12 pemain sahaja dibenarkan.');
+        showNotification('Maksimum 12 atlet sahaja dibenarkan.', 'error');
         return;
       }
       setPlayers([...players, { name: newPlayerName, position: newPlayerPos }]);
+      showNotification('Atlet berjaya ditambah.', 'success');
     }
     setNewPlayerName('');
     setNewPlayerPos('C');
@@ -100,6 +102,12 @@ export default function Registration() {
     setNewPlayerName(player.name);
     setNewPlayerPos(player.position);
     setEditingPlayerIndex(originalIndex);
+    
+    // Scroll to input form area on mobile
+    const playerForm = document.getElementById('player-input-form');
+    if (playerForm) {
+      playerForm.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   const handleCancelPlayerEdit = () => {
@@ -124,8 +132,23 @@ export default function Registration() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (editingPlayerIndex !== null) {
+      const confirmSave = confirm("Anda mempunyai maklumat atlet yang belum disimpan (sedang diedit). Adakah anda mahu batalkan edit atlet tersebut dan simpan maklumat pasukan?");
+      if (!confirmSave) return;
+      setEditingPlayerIndex(null);
+      setNewPlayerName('');
+      setNewPlayerPos('C');
+    }
+
     if (players.length < 7) {
-      showNotification('Minimum 7 pemain diperlukan.', 'error');
+      showNotification('Minimum 7 atlet diperlukan.', 'error');
+      return;
+    }
+
+    // Double check athletes names are not empty
+    if (players.some(p => !p.name.trim())) {
+      showNotification('Nama atlet tidak boleh kosong.', 'error');
       return;
     }
 
@@ -605,15 +628,15 @@ export default function Registration() {
                     </h5>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8 items-end bg-gray-50 p-4 sm:p-6 rounded-3xl border border-gray-100">
+                  <div id="player-input-form" className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8 items-end bg-gray-50 p-4 sm:p-6 rounded-3xl border border-gray-100">
                     <div className="md:col-span-2">
-                      <label className="block text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Nama Penuh Pemain</label>
+                      <label className="block text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Nama Penuh Atlet</label>
                       <input
                         type="text"
                         value={newPlayerName}
                         onChange={(e) => setNewPlayerName(e.target.value)}
-                        className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-matcha outline-none font-bold text-gray-700 text-xs sm:text-sm"
-                        placeholder="Nama Pemain"
+                        className={`w-full px-4 py-3 bg-white border ${editingPlayerIndex !== null ? 'border-blue-300 ring-2 ring-blue-50' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-matcha outline-none font-bold text-gray-700 text-xs sm:text-sm`}
+                        placeholder="Nama Atlet"
                       />
                     </div>
                     <div className="flex gap-2">
@@ -622,7 +645,7 @@ export default function Registration() {
                         <select
                           value={newPlayerPos || 'C'}
                           onChange={(e) => setNewPlayerPos(e.target.value as Position)}
-                          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-matcha outline-none font-bold text-gray-700 text-xs sm:text-sm appearance-none"
+                          className={`w-full px-4 py-3 bg-white border ${editingPlayerIndex !== null ? 'border-blue-300' : 'border-gray-200'} rounded-xl focus:ring-2 focus:ring-matcha outline-none font-bold text-gray-700 text-xs sm:text-sm appearance-none`}
                         >
                           {POSITIONS.map(pos => <option key={pos} value={pos}>{pos}</option>)}
                         </select>
@@ -630,21 +653,23 @@ export default function Registration() {
                       <button
                         type="button"
                         onClick={handleAddPlayer}
-                        className={`${editingPlayerIndex !== null ? 'bg-blue-500 shadow-blue-500/20' : 'bg-matcha-gradient shadow-matcha/20'} text-white px-6 py-3 rounded-xl hover:opacity-90 transition-all h-[46px] self-end text-xs sm:text-sm font-black uppercase tracking-widest shadow-lg flex items-center gap-2`}
+                        className={`${editingPlayerIndex !== null ? 'bg-blue-500 shadow-blue-500/20' : 'bg-matcha-gradient shadow-matcha/20'} text-white px-4 sm:px-6 py-3 rounded-xl hover:opacity-90 transition-all h-[46px] self-end text-xs sm:text-sm font-black uppercase tracking-widest shadow-lg flex items-center gap-2`}
                       >
                         {editingPlayerIndex !== null ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                        <span>{editingPlayerIndex !== null ? 'Simpan' : 'Tambah'}</span>
+                        <span className="hidden sm:inline">{editingPlayerIndex !== null ? 'Kemaskini' : 'Tambah'}</span>
+                        <span className="sm:hidden">{editingPlayerIndex !== null ? 'Simpan' : 'Tambah'}</span>
                       </button>
                     </div>
                   </div>
 
                   <div className="bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm">
-                    <div className="overflow-x-auto custom-scrollbar">
+                    {/* Desktop View Table */}
+                    <div className="hidden md:block overflow-x-auto custom-scrollbar">
                       <table className="w-full text-xs sm:text-sm">
                         <thead className="bg-gray-50 text-[10px] sm:text-xs font-black uppercase text-gray-400 tracking-widest">
                           <tr>
                             <th className="px-4 sm:px-6 py-4 text-left w-16">Bil</th>
-                            <th className="px-4 sm:px-6 py-4 text-left">Nama Pemain</th>
+                            <th className="px-4 sm:px-6 py-4 text-left">Nama Atlet</th>
                             <th className="px-4 py-4 text-center">Posisi</th>
                             <th className="px-4 sm:px-6 py-4 text-center w-24">Aksi</th>
                           </tr>
@@ -655,7 +680,7 @@ export default function Registration() {
                             .map((p, i) => (
                             <tr key={p.originalIndex} className={`${editingPlayerIndex === p.originalIndex ? 'bg-blue-50/50' : 'hover:bg-gray-50/50'} transition-colors`}>
                               <td className="px-4 sm:px-6 py-4 text-gray-400 font-bold">{i + 1}</td>
-                              <td className="px-4 sm:px-6 py-4 font-bold text-gray-700 uppercase tracking-wide">{p.name}</td>
+                              <td className="px-4 sm:px-6 py-4 font-bold text-gray-700 uppercase tracking-wide break-words">{p.name}</td>
                               <td className="px-4 py-4 text-center">
                                 <span className="bg-matcha text-white px-3 py-1 rounded-lg text-[10px] sm:text-xs font-black shadow-sm">{p.position}</span>
                               </td>
@@ -665,7 +690,7 @@ export default function Registration() {
                                     type="button" 
                                     onClick={() => handleEditPlayer(p.originalIndex)} 
                                     className="text-blue-400 hover:text-blue-600 p-2 bg-blue-50 rounded-lg transition-all hover:scale-110"
-                                    title="Edit Pemain"
+                                    title="Edit Atlet"
                                   >
                                     <Edit2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                   </button>
@@ -673,7 +698,7 @@ export default function Registration() {
                                     type="button" 
                                     onClick={() => handleRemovePlayer(p.originalIndex)} 
                                     className="text-red-400 hover:text-red-600 p-2 bg-red-50 rounded-lg transition-all hover:scale-110"
-                                    title="Padam Pemain"
+                                    title="Padam Atlet"
                                   >
                                     <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                   </button>
@@ -681,14 +706,50 @@ export default function Registration() {
                               </td>
                             </tr>
                           ))}
-                          {players.length === 0 && (
-                            <tr>
-                              <td colSpan={4} className="px-6 py-12 text-center text-gray-400 italic font-medium">Tiada pemain didaftarkan</td>
-                            </tr>
-                          )}
                         </tbody>
                       </table>
                     </div>
+
+                    {/* Mobile View List */}
+                    <div className="md:hidden divide-y divide-gray-50">
+                      {players.map((p, i) => ({ ...p, originalIndex: i }))
+                        .sort((a, b) => POSITION_ORDER.indexOf(a.position) - POSITION_ORDER.indexOf(b.position) || a.name.localeCompare(b.name))
+                        .map((p, i) => (
+                        <div key={p.originalIndex} className={`p-4 flex flex-col gap-3 ${editingPlayerIndex === p.originalIndex ? 'bg-blue-50' : ''}`}>
+                          <div className="flex justify-between items-start gap-4">
+                            <div className="flex items-center gap-3 min-w-0">
+                               <span className="w-6 h-6 flex items-center justify-center bg-gray-100 text-gray-400 rounded-lg font-black text-[10px] shrink-0">
+                                {i + 1}
+                              </span>
+                              <div className="min-w-0">
+                                <p className="font-bold text-gray-700 uppercase tracking-wide text-xs break-words">{p.name}</p>
+                                <span className="inline-block mt-1 bg-matcha/10 text-matcha px-2 py-0.5 rounded text-[8px] font-black">{p.position}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <button 
+                                type="button" 
+                                onClick={() => handleEditPlayer(p.originalIndex)} 
+                                className="p-2.5 bg-blue-50 text-blue-500 rounded-xl active:scale-90 transition-transform"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </button>
+                              <button 
+                                type="button" 
+                                onClick={() => handleRemovePlayer(p.originalIndex)} 
+                                className="p-2.5 bg-red-50 text-red-500 rounded-xl active:scale-90 transition-transform"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {players.length === 0 && (
+                      <div className="px-6 py-12 text-center text-gray-400 italic font-medium">Tiada atlet didaftarkan</div>
+                    )}
                   </div>
                 </div>
 
