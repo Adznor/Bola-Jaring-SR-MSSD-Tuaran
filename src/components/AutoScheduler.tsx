@@ -111,14 +111,24 @@ export default function AutoScheduler() {
           for (const court of courts) {
             if (currentMatchIdx >= allGroupMatches.length) break;
 
-            // Find a match where both teams are free
+            // Find a match where both teams are free AND matches the court requirement
+            // Groups A & B -> Gelanggang 1
+            // Groups C & D -> Gelanggang 2
             let foundMatchIdx = -1;
             for (let i = currentMatchIdx; i < allGroupMatches.length; i++) {
               const match = allGroupMatches[i];
+              const group = groups.find(g => g.id === match.groupId);
+              const groupName = group?.name.toUpperCase() || '';
+              
+              const isAB = groupName.includes('A') || groupName.includes('B');
+              const isCD = groupName.includes('C') || groupName.includes('D');
+
+              const courtMatch = (court === 'Gelanggang 1' && isAB) || (court === 'Gelanggang 2' && isCD);
+              if (!courtMatch) continue;
+
               const lastA = teamLastMatchTime.get(match.teamAId) || 0;
               const lastB = teamLastMatchTime.get(match.teamBId) || 0;
 
-              // Ensure at least 1 slot break if possible, but at minimum no overlap
               if (lastA <= currentTime.getTime() && lastB <= currentTime.getTime()) {
                 foundMatchIdx = i;
                 break;
@@ -157,6 +167,133 @@ export default function AutoScheduler() {
     } catch (err) {
       console.error('Error generating schedule:', err);
       showNotification('Ralat semasa menjana jadual.', 'error');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const generateMssdGroupSchedule = async () => {
+    if (!info || !info.tournamentDates?.length) {
+      showNotification('Sila tetapkan tarikh kejohanan di tab Tetapan.', 'error');
+      return;
+    }
+
+    const finishedGroupMatches = matches.filter(m => m.stage === 'group' && m.status === 'finished');
+    if (finishedGroupMatches.length > 0) {
+      showNotification('Jadual tidak boleh dijana semula kerana terdapat perlawanan yang sudah tamat.', 'error');
+      return;
+    }
+
+    const date = info.tournamentDates[0]; // Day 1
+    if (!date) {
+      showNotification('Sila masukkan tarikh Hari 1 di tab Tetapan.', 'error');
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const batch = writeBatch(db);
+      
+      // Clear existing group matches
+      const existingGroupMatches = matches.filter(m => m.stage === 'group');
+      existingGroupMatches.forEach(m => batch.delete(doc(db, 'matches', m.id)));
+
+      // MSSD Sequence for Groups A & B (Gelanggang 1)
+      const sequenceG1 = [
+        { time: "07:30", group: "A", teamA: 1, teamB: 4 },
+        { time: "07:45", group: "A", teamA: 6, teamB: 2 },
+        { time: "08:00", group: "B", teamA: 1, teamB: 4 },
+        { time: "08:15", group: "B", teamA: 6, teamB: 2 },
+        { time: "08:30", group: "A", teamA: 5, teamB: 3 },
+        { time: "08:45", group: "A", teamA: 2, teamB: 1 },
+        // 09:00 Majlis
+        { time: "10:15", group: "B", teamA: 5, teamB: 3 },
+        { time: "10:30", group: "B", teamA: 2, teamB: 1 },
+        { time: "10:45", group: "A", teamA: 3, teamB: 6 },
+        { time: "11:00", group: "A", teamA: 4, teamB: 5 },
+        { time: "11:15", group: "B", teamA: 3, teamB: 6 },
+        { time: "11:30", group: "B", teamA: 4, teamB: 5 },
+        { time: "11:45", group: "A", teamA: 1, teamB: 6 },
+        // 12:00 Lunch
+        { time: "13:00", group: "A", teamA: 2, teamB: 5 },
+        { time: "13:15", group: "B", teamA: 1, teamB: 6 },
+        { time: "13:30", group: "B", teamA: 2, teamB: 5 },
+        { time: "13:45", group: "A", teamA: 3, teamB: 4 },
+        { time: "14:00", group: "A", teamA: 1, teamB: 5 },
+        { time: "14:15", group: "B", teamA: 3, teamB: 4 },
+        { time: "14:30", group: "B", teamA: 1, teamB: 5 },
+        { time: "14:45", group: "A", teamA: 6, teamB: 4 },
+        { time: "15:00", group: "A", teamA: 2, teamB: 3 },
+        { time: "15:15", group: "B", teamA: 6, teamB: 4 },
+        { time: "15:30", group: "B", teamA: 2, teamB: 3 },
+        { time: "15:45", group: "A", teamA: 5, teamB: 6 },
+        { time: "16:00", group: "A", teamA: 3, teamB: 1 },
+        { time: "16:15", group: "B", teamA: 5, teamB: 6 },
+        { time: "16:30", group: "B", teamA: 3, teamB: 1 },
+        { time: "16:45", group: "A", teamA: 4, teamB: 2 },
+        { time: "17:00", group: "B", teamA: 4, teamB: 2 },
+      ];
+
+      // MSSD Sequence for Groups C & D (Gelanggang 2)
+      const sequenceG2 = [
+        { time: "07:30", group: "C", teamA: 1, teamB: 4 },
+        { time: "07:45", group: "C", teamA: 2, teamB: 3 },
+        { time: "08:00", group: "D", teamA: 1, teamB: 4 },
+        { time: "08:15", group: "D", teamA: 2, teamB: 3 },
+        { time: "08:30", group: "C", teamA: 5, teamB: 3 },
+        { time: "08:45", group: "C", teamA: 1, teamB: 2 },
+        // 09:00 Majlis
+        { time: "10:15", group: "D", teamA: 5, teamB: 3 },
+        { time: "10:30", group: "D", teamA: 1, teamB: 2 },
+        { time: "10:45", group: "C", teamA: 4, teamB: 2 },
+        { time: "11:00", group: "C", teamA: 5, teamB: 1 },
+        { time: "11:15", group: "D", teamA: 4, teamB: 2 },
+        { time: "11:30", group: "D", teamA: 5, teamB: 1 },
+        { time: "11:45", group: "C", teamA: 4, teamB: 5 },
+        // 12:00 Lunch
+        { time: "13:00", group: "C", teamA: 3, teamB: 1 },
+        { time: "13:15", group: "D", teamA: 4, teamB: 5 },
+        { time: "13:30", group: "D", teamA: 3, teamB: 1 },
+        { time: "13:45", group: "C", teamA: 2, teamB: 5 },
+        { time: "14:00", group: "C", teamA: 3, teamB: 4 },
+        { time: "14:15", group: "D", teamA: 2, teamB: 5 },
+        { time: "14:30", group: "D", teamA: 3, teamB: 4 },
+      ];
+
+      const processSequence = (seq: any[], court: string) => {
+        seq.forEach(item => {
+          const group = groups.find(g => g.name.toUpperCase().includes(item.group.toUpperCase()));
+          if (!group) return;
+          const groupTeams = teams.filter(t => t.groupId === group.id);
+          const teamA = groupTeams.find(t => t.groupPosition === item.teamA);
+          const teamB = groupTeams.find(t => t.groupPosition === item.teamB);
+
+          const matchRef = doc(collection(db, 'matches'));
+          batch.set(matchRef, {
+            teamAId: teamA?.id || null,
+            teamBId: teamB?.id || null,
+            groupId: group.id,
+            stage: 'group',
+            status: 'scheduled',
+            scoreA: 0,
+            scoreB: 0,
+            scorers: [],
+            date: date,
+            time: item.time,
+            court: court,
+            placeholderLabel: `${item.group}${item.teamA} vs ${item.group}${item.teamB}`
+          });
+        });
+      };
+
+      processSequence(sequenceG1, 'Gelanggang 1');
+      processSequence(sequenceG2, 'Gelanggang 2');
+
+      await batch.commit();
+      showNotification('Jadual Rasmi MSSD 2026 berjaya dijana!');
+    } catch (err) {
+      console.error('Error generating official schedule:', err);
+      showNotification('Ralat semasa menjana jadual rasmi.', 'error');
     } finally {
       setIsGenerating(false);
     }
@@ -208,72 +345,63 @@ export default function AutoScheduler() {
       const existingKoMatches = matches.filter(m => koStages.includes(m.stage));
       existingKoMatches.forEach(m => batch.delete(doc(db, 'matches', m.id)));
 
-      // Quarter Finals
-      // QF1: A1 vs B2
-      // QF2: B1 vs A2
-      // QF3: C1 vs D2
-      // QF4: D1 vs C2
+      // Quarter Finals (MSSD 2026 Format)
+      // QF1 (Bil 59): Johan A vs Naib Johan D
+      // QF2 (Bil 60): Johan C vs Naib Johan B
+      // QF3 (Bil 61): Johan B vs Naib Johan C
+      // QF4 (Bil 62): Johan D vs Naib Johan A
       const qfPairs = [
-        { a: standingsByGroup['A'][0], b: standingsByGroup['B'][1], label: 'Suku Akhir 1 (A1 vs B2)' },
-        { a: standingsByGroup['B'][0], b: standingsByGroup['A'][1], label: 'Suku Akhir 2 (B1 vs A2)' },
-        { a: standingsByGroup['C'][0], b: standingsByGroup['D'][1], label: 'Suku Akhir 3 (C1 vs D2)' },
-        { a: standingsByGroup['D'][0], b: standingsByGroup['C'][1], label: 'Suku Akhir 4 (D1 vs C2)' },
+        { a: standingsByGroup['A'][0], b: standingsByGroup['D'][1], label: 'Suku Akhir 1 (Johan A vs Naib Johan D)' },
+        { a: standingsByGroup['C'][0], b: standingsByGroup['B'][1], label: 'Suku Akhir 2 (Johan C vs Naib Johan B)' },
+        { a: standingsByGroup['B'][0], b: standingsByGroup['C'][1], label: 'Suku Akhir 3 (Johan B vs Naib Johan C)' },
+        { a: standingsByGroup['D'][0], b: standingsByGroup['A'][1], label: 'Suku Akhir 4 (Johan D vs Naib Johan A)' },
       ];
 
       // Find last match time to start knockout
       const lastGroupMatch = matches.filter(m => m.stage === 'group').sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time))[0];
       let currentStartTime: Date;
       
-      if (lastGroupMatch && info) {
-        // Start next day or after last match
-        currentStartTime = new Date(`${lastGroupMatch.date}T${lastGroupMatch.time}`);
-        const prevMatchDur = lastGroupMatch.stage === 'group' ? (info.groupMatchDuration || 15) : (info.knockoutMatchDuration || 23);
-        const prevBreakDur = lastGroupMatch.stage === 'group' ? (info.groupBreakDuration || 1) : (info.knockoutBreakDuration || 3);
-        currentStartTime = new Date(currentStartTime.getTime() + prevMatchDur * 60000 + prevBreakDur * 60000);
+      const koDate = info?.tournamentDates?.[1] || info?.tournamentDates?.[0] || ''; // Day 2 preferred
+
+      if (info?.dailyStartTime) {
+        currentStartTime = new Date(`${koDate || '2026-01-01'}T08:00`);
       } else {
         currentStartTime = new Date();
       }
 
-      const matchDur = info?.knockoutMatchDuration || 23;
-      const breakDur = info?.knockoutBreakDuration || 3;
+      const matchDur = info?.knockoutMatchDuration || 25;
+      const breakDur = info?.knockoutBreakDuration || 0;
       const slotDur = matchDur + breakDur;
 
       // Add QF matches
       qfPairs.forEach((pair, i) => {
         const matchRef = doc(collection(db, 'matches'));
         batch.set(matchRef, {
-          teamAId: pair.a.id,
-          teamBId: pair.b.id,
+          teamAId: pair.a?.id || null,
+          teamBId: pair.b?.id || null,
           stage: 'quarter',
           status: 'scheduled',
           scoreA: 0,
           scoreB: 0,
           scorers: [],
-          court: i % 2 === 0 ? 'Gelanggang 1' : 'Gelanggang 2',
-          date: info?.tournamentDates?.[info.tournamentDates.length - 1] || '',
-          time: currentStartTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+          court: 'Gelanggang 1',
+          date: koDate,
+          time: currentStartTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+          placeholderLabel: pair.label
         });
-        if (i % 2 === 1) {
-          currentStartTime = new Date(currentStartTime.getTime() + slotDur * 60000);
-        }
+        currentStartTime = new Date(currentStartTime.getTime() + slotDur * 60000);
+        // Small break after QF
+        if (i === 3) currentStartTime = new Date(currentStartTime.getTime() + 15 * 60000);
       });
 
-      // Semi Finals, 3rd Place, Final will be placeholders since winners are unknown
-      // But user wants them generated. I'll create them with "Pemenang QF X" labels?
-      // Actually, my Match type expects teamAId. I'll just generate QF for now as they are deterministic.
-      // The user can add the rest manually or I can add logic to "Pemenang" later.
-      // Wait, the request says "sistem akan menjana secara automatik: Suku Akhir, Separuh Akhir, Perlawanan Tempat Ketiga, Perlawanan Akhir".
-      // I'll create them with null teamAId/teamBId and special labels.
-      
       const placeholders = [
-        { stage: 'semi', label: 'Separuh Akhir 1 (Pemenang SA1 vs Pemenang SA3)' },
-        { stage: 'semi', label: 'Separuh Akhir 2 (Pemenang SA2 vs Pemenang SA4)' },
-        { stage: 'third_place', label: 'Penentuan Tempat Ke-3' },
-        { stage: 'final', label: 'Perlawanan Akhir' }
+        { stage: 'semi', label: 'Separuh Akhir 1 (Menang 59 vs Menang 60)' },
+        { stage: 'semi', label: 'Separuh Akhir 2 (Menang 61 vs Menang 62)' },
+        { stage: 'third_place', label: 'Penentuan Tempat Ke-3 (Kalah 63 vs Kalah 64)' },
+        { stage: 'final', label: 'Perlawanan Akhir (Menang 63 vs Menang 64)' }
       ];
 
       placeholders.forEach((p, i) => {
-        currentStartTime = new Date(currentStartTime.getTime() + slotDur * 60000);
         const matchRef = doc(collection(db, 'matches'));
         batch.set(matchRef, {
           stage: p.stage,
@@ -282,10 +410,12 @@ export default function AutoScheduler() {
           scoreB: 0,
           scorers: [],
           court: 'Gelanggang 1',
-          date: info?.tournamentDates?.[info.tournamentDates.length - 1] || '',
+          date: koDate,
           time: currentStartTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
           placeholderLabel: p.label
         });
+        currentStartTime = new Date(currentStartTime.getTime() + slotDur * 60000);
+        if (i === 1) currentStartTime = new Date(currentStartTime.getTime() + 125 * 60000); // Rehat lunch before finals as per PDF
       });
 
       await batch.commit();
@@ -315,14 +445,24 @@ export default function AutoScheduler() {
             <p className="text-sm text-gray-500">
               Jana jadual round-robin untuk semua kumpulan secara automatik. Sistem akan mengagihkan perlawanan di 2 gelanggang dengan masa rehat yang seimbang.
             </p>
-            <button
-              onClick={generateGroupSchedule}
-              disabled={isGenerating}
-              className="w-full bg-matcha-gradient text-white py-3 rounded-xl font-bold uppercase tracking-widest shadow-lg hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              <Play className="h-4 w-4" />
-              {isGenerating ? 'Menjana...' : 'Jana Jadual Kumpulan'}
-            </button>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={generateGroupSchedule}
+                disabled={isGenerating}
+                className="w-full bg-matcha/10 text-matcha py-3 rounded-xl font-bold uppercase tracking-widest border border-matcha/20 hover:bg-matcha/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <LayoutGrid className="h-4 w-4" />
+                Auto-Agihan (Rawak)
+              </button>
+              <button
+                onClick={generateMssdGroupSchedule}
+                disabled={isGenerating}
+                className="w-full bg-matcha-gradient text-white py-4 rounded-xl font-black uppercase tracking-widest shadow-lg hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-50 border-2 border-white/20"
+              >
+                <Zap className="h-5 w-5" />
+                Jana Jadual Rasmi MSSD 2026
+              </button>
+            </div>
           </div>
 
           <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 space-y-4">
