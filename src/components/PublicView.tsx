@@ -3,6 +3,7 @@ import { collection, onSnapshot } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { Team, Group, Match, TeamStats, MatchStage, MatchStatus, TournamentInfo } from '../types';
 import { Trophy, CalendarDays, LayoutGrid, ChevronRight, Search, Filter, X, Star, Clock, Play, CheckCircle, Info, Medal } from 'lucide-react';
+import GroupMatrix from './GroupMatrix';
 
 const STATUSES: { value: MatchStatus; label: string; color: string }[] = [
   { value: 'upcoming', label: 'Akan Datang', color: 'bg-blue-100 text-blue-700 border-blue-200' },
@@ -273,10 +274,10 @@ export default function PublicView() {
     if (!groupId) return '';
     const group = groups.find(g => g.id === groupId);
     if (!group) return '';
+    const team = teams.find(t => t.id === teamId);
+    if (!team) return '';
     const groupLetter = group.name.split(' ').pop()?.charAt(0) || group.name.charAt(0);
-    const groupTeams = teams.filter(t => t.groupId === groupId).sort((a, b) => (a.groupPosition || 0) - (b.groupPosition || 0));
-    const index = groupTeams.findIndex(t => t.id === teamId);
-    return index >= 0 ? `${groupLetter}${index + 1}` : '';
+    return `${groupLetter}${team.groupPosition || ''}`;
   };
 
   function TableView({ matches }: { matches: Match[] }) {
@@ -327,7 +328,7 @@ export default function PublicView() {
                                 <div className="flex items-center justify-center gap-3">
                                   <div className="flex items-center gap-1.5 w-[100px] justify-end">
                                     <div className="flex flex-col items-end">
-                                      <span className="text-right font-bold truncate text-[10px] sm:text-xs">
+                                      <span className="text-right font-bold whitespace-normal leading-tight line-clamp-2 text-[10px] sm:text-xs">
                                         {match.teamAId ? getTeamName(match.teamAId) : (match.placeholderLabel?.split('vs')[0] || 'TBA')}
                                       </span>
                                       {match.teamAId && match.stage === 'group' && (
@@ -348,7 +349,7 @@ export default function PublicView() {
                                       )}
                                     </div>
                                     <div className="flex flex-col items-start text-left">
-                                      <span className="text-left font-bold truncate text-[10px] sm:text-xs">
+                                      <span className="text-left font-bold whitespace-normal leading-tight line-clamp-2 text-[10px] sm:text-xs">
                                         {match.teamBId ? getTeamName(match.teamBId) : (match.placeholderLabel?.split('vs')[1] || 'TBA')}
                                       </span>
                                       {match.teamBId && match.stage === 'group' && (
@@ -633,6 +634,10 @@ export default function PublicView() {
               <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Mata</span>
             </div>
           </div>
+          
+          <div className="mt-12">
+            <GroupMatrix />
+          </div>
         </>
       )}
 
@@ -664,7 +669,7 @@ export default function PublicView() {
                 <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
                   <LayoutGrid className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
                   <select
-                    value={sortOrder}
+                    value={sortOrder || 'stage'}
                     onChange={(e) => setSortOrder(e.target.value as any)}
                     className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
                   >
@@ -677,7 +682,7 @@ export default function PublicView() {
                 <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
                   <LayoutGrid className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
                   <select
-                    value={layoutMode}
+                    value={layoutMode || 'card'}
                     onChange={(e) => setLayoutMode(e.target.value as any)}
                     className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
                   >
@@ -689,7 +694,7 @@ export default function PublicView() {
                 <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
                   <CalendarDays className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
                   <select
-                    value={selectedDate}
+                    value={selectedDate || 'all'}
                     onChange={(e) => setSelectedDate(e.target.value)}
                     className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
                   >
@@ -703,7 +708,7 @@ export default function PublicView() {
                 <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
                   <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
                   <select
-                    value={selectedTimeFilter}
+                    value={selectedTimeFilter || 'all'}
                     onChange={(e) => setSelectedTimeFilter(e.target.value)}
                     className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
                   >
@@ -717,7 +722,7 @@ export default function PublicView() {
                 <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
                   <Play className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
                   <select
-                    value={selectedStatusFilter}
+                    value={selectedStatusFilter || 'all'}
                     onChange={(e) => setSelectedStatusFilter(e.target.value)}
                     className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
                   >
@@ -731,7 +736,7 @@ export default function PublicView() {
                 <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
                   <Filter className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
                   <select
-                    value={selectedStageFilter}
+                    value={selectedStageFilter || 'all'}
                     onChange={(e) => setSelectedStageFilter(e.target.value)}
                     className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
                   >
@@ -745,7 +750,7 @@ export default function PublicView() {
                 <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
                   <LayoutGrid className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
                   <select
-                    value={selectedCourtFilter}
+                    value={selectedCourtFilter || 'all'}
                     onChange={(e) => setSelectedCourtFilter(e.target.value)}
                     className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
                   >
@@ -920,7 +925,7 @@ export default function PublicView() {
             <div className="flex items-center space-x-2 bg-gray-50 p-1 rounded-lg border border-gray-100 self-start">
               <Filter className="h-3 w-3 md:h-4 md:w-4 text-gray-400 ml-1 md:2" />
               <select 
-                value={scorerFilter}
+                value={scorerFilter || 'all'}
                 onChange={(e) => setScorerFilter(e.target.value as any)}
                 className="bg-transparent border-none text-[9px] md:text-sm font-bold text-gray-600 focus:ring-0 cursor-pointer pr-5 md:8"
               >

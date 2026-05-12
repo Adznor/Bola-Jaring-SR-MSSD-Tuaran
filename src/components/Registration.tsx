@@ -620,7 +620,7 @@ export default function Registration() {
                       <div className="flex-1">
                         <label className="block text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Posisi</label>
                         <select
-                          value={newPlayerPos}
+                          value={newPlayerPos || 'C'}
                           onChange={(e) => setNewPlayerPos(e.target.value as Position)}
                           className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-matcha outline-none font-bold text-gray-700 text-xs sm:text-sm appearance-none"
                         >

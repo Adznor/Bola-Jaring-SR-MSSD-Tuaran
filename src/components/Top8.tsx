@@ -163,7 +163,7 @@ export default function Top8() {
               {team.logoUrl && (
                 <img src={team.logoUrl} alt="" className="w-8 h-8 object-contain bg-white p-1 rounded-lg border border-gray-100" referrerPolicy="no-referrer" />
               )}
-              <span className="font-bold text-gray-800 uppercase text-xs truncate">{team.name}</span>
+              <span className="font-bold text-gray-800 uppercase text-xs whitespace-normal leading-tight">{team.name}</span>
             </div>
           ))}
           {teams.length === 0 && (

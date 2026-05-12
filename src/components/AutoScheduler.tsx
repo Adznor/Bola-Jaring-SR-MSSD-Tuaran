@@ -447,14 +447,6 @@ export default function AutoScheduler() {
             </p>
             <div className="flex flex-col gap-3">
               <button
-                onClick={generateGroupSchedule}
-                disabled={isGenerating}
-                className="w-full bg-matcha/10 text-matcha py-3 rounded-xl font-bold uppercase tracking-widest border border-matcha/20 hover:bg-matcha/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <LayoutGrid className="h-4 w-4" />
-                Auto-Agihan (Rawak)
-              </button>
-              <button
                 onClick={generateMssdGroupSchedule}
                 disabled={isGenerating}
                 className="w-full bg-matcha-gradient text-white py-4 rounded-xl font-black uppercase tracking-widest shadow-lg hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-50 border-2 border-white/20"

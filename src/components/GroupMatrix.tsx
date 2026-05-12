@@ -46,11 +46,23 @@ export default function GroupMatrix() {
     });
   }, [teams, groups, matches]);
 
-  const checkMatchExists = (teamAId: string, teamBId: string, groupMatches: Match[]) => {
-    return groupMatches.some(m => 
-      (m.teamAId === teamAId && m.teamBId === teamBId) || 
-      (m.teamAId === teamBId && m.teamBId === teamAId)
+  const checkMatchExists = (teamA: Team, teamB: Team, group: Group, groupMatches: Match[]) => {
+    const groupLetter = group.name.split(' ').pop()?.charAt(0) || group.name.charAt(0);
+    const label1 = `${groupLetter}${teamA.groupPosition} vs ${groupLetter}${teamB.groupPosition}`;
+    const label2 = `${groupLetter}${teamB.groupPosition} vs ${groupLetter}${teamA.groupPosition}`;
+
+    return groupMatches.find(m => 
+      // Option 1: Match by IDs
+      (m.teamAId === teamA.id && m.teamBId === teamB.id) || 
+      (m.teamAId === teamB.id && m.teamBId === teamA.id) ||
+      // Option 2: Match by Placeholder Labels (if IDs are not yet linked)
+      (m.placeholderLabel === label1 || m.placeholderLabel === label2)
     );
+  };
+
+  const getTeamLabel = (team: Team, group: Group) => {
+    const groupLetter = group.name.split(' ').pop()?.charAt(0) || group.name.charAt(0);
+    return `${groupLetter}${team.groupPosition || ''}`;
   };
 
   return (
@@ -102,8 +114,11 @@ export default function GroupMatrix() {
                   <tr>
                     <th className="p-2 border border-gray-100 bg-gray-50"></th>
                     {group.teams.map(team => (
-                      <th key={team.id} className="p-2 border border-gray-100 bg-gray-50 text-[10px] sm:text-xs font-black text-gray-600 uppercase tracking-tight min-w-[80px]">
-                        {team.name}
+                      <th key={team.id} className="p-2 border border-gray-100 bg-gray-50 text-[10px] sm:text-xs font-black text-gray-600 uppercase tracking-tight min-w-[100px]">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-matcha">{getTeamLabel(team, group)}</span>
+                          <span className="whitespace-normal leading-tight line-clamp-2 max-w-[120px]">{team.name}</span>
+                        </div>
                       </th>
                     ))}
                   </tr>
@@ -111,34 +126,55 @@ export default function GroupMatrix() {
                 <tbody>
                   {group.teams.map((teamA, rowIndex) => (
                     <tr key={teamA.id}>
-                      <td className="p-2 border border-gray-100 bg-gray-50 text-[10px] sm:text-xs font-black text-gray-600 uppercase tracking-tight">
-                        {teamA.name}
+                      <td className="p-2 border border-gray-100 bg-gray-50 text-[10px] sm:text-xs font-black text-gray-600 uppercase tracking-tight min-w-[120px]">
+                        <div className="flex flex-col items-start gap-1">
+                          <span className="text-matcha shrink-0">{getTeamLabel(teamA, group)}</span>
+                          <span className="whitespace-normal leading-tight line-clamp-2">{teamA.name}</span>
+                        </div>
                       </td>
                       {group.teams.map((teamB, colIndex) => {
                         if (rowIndex === colIndex) {
                           return <td key={teamB.id} className="p-2 border border-gray-100 bg-gray-200"></td>;
                         }
                         
-                        const exists = checkMatchExists(teamA.id, teamB.id, group.matches);
+                        const match = checkMatchExists(teamA, teamB, group, group.matches);
+                        const isFinished = match?.status === 'finished';
+                        
+                        // Determine score order based on which team is A and which is B in the match object
+                        let displayScore = '';
+                        if (match && isFinished) {
+                          if (match.teamAId === teamA.id) {
+                            displayScore = `${match.scoreA} - ${match.scoreB}`;
+                          } else {
+                            displayScore = `${match.scoreB} - ${match.scoreA}`;
+                          }
+                        }
                         
                         return (
                           <td 
                             key={teamB.id} 
-                            className={`p-2 border border-gray-100 text-center transition-colors ${
-                              exists ? 'bg-green-50' : 'bg-red-50'
+                            className={`p-1 md:p-2 border border-gray-100 text-center transition-colors ${
+                              match ? (isFinished ? 'bg-green-50' : 'bg-blue-50') : 'bg-red-50'
                             }`}
                           >
-                            <div className="flex flex-col items-center justify-center gap-1">
-                              {exists ? (
-                                <>
-                                  <CheckCircle className="h-4 w-4 text-green-500" />
-                                  <span className="text-[8px] font-bold text-green-700 uppercase">Wujud</span>
-                                </>
+                            <div className="flex flex-col items-center justify-center gap-1 min-h-[40px]">
+                              {match ? (
+                                isFinished ? (
+                                  <div className="flex flex-col items-center">
+                                    <span className="text-[10px] md:text-sm font-black text-gray-800">{displayScore}</span>
+                                    <span className="text-[8px] font-bold text-green-600 uppercase">Tamat</span>
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col items-center">
+                                    <span className="text-[9px] font-bold text-blue-600 italic">{match.time}</span>
+                                    <span className="text-[8px] font-bold text-blue-400 uppercase">Akan Datang</span>
+                                  </div>
+                                )
                               ) : (
-                                <>
-                                  <XCircle className="h-4 w-4 text-red-500" />
-                                  <span className="text-[8px] font-bold text-red-700 uppercase">Tiada</span>
-                                </>
+                                <div className="flex flex-col items-center opacity-40">
+                                  <XCircle className="h-3 w-3 text-red-400" />
+                                  <span className="text-[8px] font-bold text-red-400 uppercase">Tiada</span>
+                                </div>
                               )}
                             </div>
                           </td>

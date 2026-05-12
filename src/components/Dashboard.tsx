@@ -12,6 +12,7 @@ export default function Dashboard() {
   const urusetiaTabs = [
     { name: 'Pendaftaran Pasukan', path: '/admin/registration', icon: Users },
     { name: 'Pengurusan Kumpulan', path: '/admin/groups', icon: LayoutGrid },
+    { name: 'Jadual Matriks', path: '/admin/matrix', icon: LayoutGrid },
     { name: 'Penjadualan Automatik', path: '/admin/auto-schedule', icon: Zap },
     { name: 'Perlawanan & Keputusan', path: '/admin/matches', icon: CalendarDays },
     { name: 'Catatan', path: '/admin/top8', icon: Trophy },
@@ -54,7 +55,7 @@ export default function Dashboard() {
           <div className="lg:hidden">
             <div className="relative">
               <select
-                value={location.pathname}
+                value={location.pathname || ''}
                 onChange={(e) => {
                   const path = e.target.value;
                   window.location.href = path;

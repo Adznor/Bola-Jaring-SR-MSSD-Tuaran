@@ -190,12 +190,12 @@ export default function MatchEntry() {
     setEditingMatch(match);
     setDate(match.date);
     setTime(match.time);
-    setCourt(match.court);
-    setTeamAId(match.teamAId);
-    setTeamBId(match.teamBId);
-    setScoreA(match.scoreA);
-    setScoreB(match.scoreB);
-    setStage(match.stage);
+    setCourt(match.court || 'Gelanggang 1');
+    setTeamAId(match.teamAId || '');
+    setTeamBId(match.teamBId || '');
+    setScoreA(match.scoreA || 0);
+    setScoreB(match.scoreB || 0);
+    setStage(match.stage || 'group');
     setStatus(match.status || 'upcoming');
     setFormGroupId(match.groupId || '');
     setPlaceholderLabel(match.placeholderLabel || '');
@@ -248,7 +248,15 @@ export default function MatchEntry() {
     if (!groupId) return '';
     const group = groups.find(g => g.id === groupId);
     if (!group) return '';
+    const team = teams.find(t => t.id === teamId);
+    if (!team) return '';
+    
     const groupLetter = group.name.split(' ').pop()?.charAt(0) || group.name.charAt(0);
+    
+    if (team.groupPosition) {
+      return `${groupLetter}${team.groupPosition}`;
+    }
+
     const groupTeams = teams
       .filter(t => t.groupId === groupId)
       .sort((a, b) => {
@@ -650,7 +658,9 @@ export default function MatchEntry() {
                               <td className="px-3 py-3">
                                 <div className="flex items-center justify-center gap-3">
                                   <div className="flex items-center gap-1.5 w-[100px] justify-end">
-                                    <span className="text-right font-bold truncate">{match.teamAId ? getTeamName(match.teamAId) : (match.placeholderLabel?.split('vs')[0] || 'TBA')}</span>
+                                    <span className="text-right font-bold whitespace-normal leading-tight line-clamp-2 text-[10px] sm:text-xs">
+                                      {match.teamAId ? getTeamName(match.teamAId) : (match.placeholderLabel?.split('vs')[0] || 'TBA')}
+                                    </span>
                                     <div className="w-5 h-5 flex-shrink-0 bg-gray-50 rounded border border-gray-100 p-0.5">
                                       {match.teamAId && getTeamLogo(match.teamAId) && (
                                         <img src={getTeamLogo(match.teamAId)} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
@@ -664,7 +674,9 @@ export default function MatchEntry() {
                                         <img src={getTeamLogo(match.teamBId)} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                                       )}
                                     </div>
-                                    <span className="text-left font-bold truncate">{match.teamBId ? getTeamName(match.teamBId) : (match.placeholderLabel?.split('vs')[1] || 'TBA')}</span>
+                                    <span className="text-left font-bold whitespace-normal leading-tight line-clamp-2 text-[10px] sm:text-xs">
+                                      {match.teamBId ? getTeamName(match.teamBId) : (match.placeholderLabel?.split('vs')[1] || 'TBA')}
+                                    </span>
                                   </div>
                                 </div>
                               </td>
@@ -695,23 +707,26 @@ export default function MatchEntry() {
     );
   }
 
-  const getMatch = (teamAId: string, teamBId: string) => {
+  const getMatch = (teamA: Team, teamB: Team) => {
+    const group = groups.find(g => g.id === teamA.groupId);
+    if (!group) return null;
+    const groupLetter = group.name.split(' ').pop()?.charAt(0) || group.name.charAt(0);
+    const label1 = `${groupLetter}${teamA.groupPosition} vs ${groupLetter}${teamB.groupPosition}`;
+    const label2 = `${groupLetter}${teamB.groupPosition} vs ${groupLetter}${teamA.groupPosition}`;
+
     return matches.find(m => 
-      m.stage === 'group' && 
-      ((m.teamAId === teamAId && m.teamBId === teamBId) || 
-       (m.teamAId === teamBId && m.teamBId === teamAId))
+      m.stage === 'group' && (
+        ((m.teamAId === teamA.id && m.teamBId === teamB.id) || 
+         (m.teamAId === teamB.id && m.teamBId === teamA.id)) ||
+        (m.placeholderLabel === label1 || m.placeholderLabel === label2)
+      )
     );
   };
 
   const matrixGroupTeams = useMemo(() => {
     return teams
       .filter(t => t.groupId === activeMatrixGroup)
-      .sort((a, b) => {
-        const timeA = a.createdAt || 0;
-        const timeB = b.createdAt || 0;
-        if (timeB !== timeA) return timeB - timeA;
-        return a.name.localeCompare(b.name);
-      });
+      .sort((a, b) => (a.groupPosition || 0) - (b.groupPosition || 0));
   }, [teams, activeMatrixGroup]);
 
   return (
@@ -743,12 +758,12 @@ export default function MatchEntry() {
               <table className="w-full text-[9px] md:text-[11px] border-collapse">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="p-1.5 border-r border-gray-100 text-left font-black text-gray-400 uppercase tracking-widest text-[8px]">Pasukan</th>
+                    <th className="p-1.5 border-r border-gray-100 text-left font-black text-gray-400 uppercase tracking-widest text-[8px] w-32">Pasukan</th>
                     {matrixGroupTeams.map(team => (
                       <th key={team.id} className="p-1.5 text-center font-black text-gray-400 uppercase tracking-widest text-[8px] min-w-[80px]">
-                        <div className="flex items-center justify-center gap-1">
+                        <div className="flex flex-col items-center justify-center gap-1">
                           <span className="text-matcha shrink-0">{getTeamCode(team.id, activeMatrixGroup)}</span>
-                          <span className="line-clamp-1">{team.name}</span>
+                          <span className="whitespace-normal leading-tight line-clamp-2">{team.name}</span>
                         </div>
                       </th>
                     ))}
@@ -758,16 +773,16 @@ export default function MatchEntry() {
                   {matrixGroupTeams.map(teamA => (
                     <tr key={teamA.id} className="hover:bg-gray-50 transition-colors">
                       <td className="p-1.5 border-r border-gray-100 font-bold text-gray-800 bg-gray-50/50">
-                        <div className="flex items-center gap-1">
+                        <div className="flex flex-col items-start gap-1">
                           <span className="text-[8px] text-matcha font-black uppercase shrink-0">{getTeamCode(teamA.id, activeMatrixGroup)}</span>
-                          <span className="uppercase tracking-tight leading-tight line-clamp-1">{teamA.name}</span>
+                          <span className="uppercase tracking-tight leading-tight whitespace-normal line-clamp-2">{teamA.name}</span>
                         </div>
                       </td>
                       {matrixGroupTeams.map(teamB => {
                         if (teamA.id === teamB.id) {
                           return <td key={teamB.id} className="p-1.5 bg-gray-100/50"></td>;
                         }
-                        const match = getMatch(teamA.id, teamB.id);
+                        const match = getMatch(teamA, teamB);
                         return (
                           <td key={teamB.id} className="p-1.5 text-center">
                             <button 
@@ -841,7 +856,7 @@ export default function MatchEntry() {
               <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
                 <LayoutGrid className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
                 <select
-                  value={sortOrder}
+                  value={sortOrder || 'stage'}
                   onChange={(e) => setSortOrder(e.target.value as any)}
                   className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
                 >
@@ -854,7 +869,7 @@ export default function MatchEntry() {
               <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
                 <LayoutGrid className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
                 <select
-                  value={layoutMode}
+                  value={layoutMode || 'card'}
                   onChange={(e) => setLayoutMode(e.target.value as any)}
                   className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
                 >
@@ -866,7 +881,7 @@ export default function MatchEntry() {
               <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
                 <CalendarDays className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
                 <select
-                  value={selectedDate}
+                  value={selectedDate || 'all'}
                   onChange={(e) => setSelectedDate(e.target.value)}
                   className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
                 >
@@ -880,7 +895,7 @@ export default function MatchEntry() {
               <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
                 <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
                 <select
-                  value={selectedTimeFilter}
+                  value={selectedTimeFilter || 'all'}
                   onChange={(e) => setSelectedTimeFilter(e.target.value)}
                   className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
                 >
@@ -894,7 +909,7 @@ export default function MatchEntry() {
               <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
                 <Play className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
                 <select
-                  value={selectedStatusFilter}
+                  value={selectedStatusFilter || 'all'}
                   onChange={(e) => setSelectedStatusFilter(e.target.value)}
                   className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
                 >
@@ -908,7 +923,7 @@ export default function MatchEntry() {
               <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
                 <Filter className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
                 <select
-                  value={selectedStageFilter}
+                  value={selectedStageFilter || 'all'}
                   onChange={(e) => setSelectedStageFilter(e.target.value)}
                   className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
                 >
@@ -922,7 +937,7 @@ export default function MatchEntry() {
               <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
                 <LayoutGrid className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
                 <select
-                  value={selectedCourtFilter}
+                  value={selectedCourtFilter || 'all'}
                   onChange={(e) => setSelectedCourtFilter(e.target.value)}
                   className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
                 >
@@ -937,7 +952,7 @@ export default function MatchEntry() {
                 <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
                   <Users className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
                   <select
-                    value={selectedGroupFilter}
+                    value={selectedGroupFilter || 'all'}
                     onChange={(e) => setSelectedGroupFilter(e.target.value)}
                     className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
                   >
@@ -1043,14 +1058,14 @@ export default function MatchEntry() {
                     </div>
                     <div>
                       <label className="block text-[10px] md:text-sm font-bold text-gray-400 uppercase tracking-widest mb-1">Gelanggang</label>
-                      <select value={court} onChange={(e) => setCourt(e.target.value as any)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm focus:ring-2 focus:ring-magenta focus:border-transparent outline-none">
+                      <select value={court || 'Gelanggang 1'} onChange={(e) => setCourt(e.target.value as any)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm focus:ring-2 focus:ring-magenta focus:border-transparent outline-none">
                         {COURTS.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="block text-[10px] md:text-sm font-bold text-gray-400 uppercase tracking-widest mb-1">Status</label>
                       <select 
-                        value={status} 
+                        value={status || 'upcoming'} 
                         onChange={(e) => setStatus(e.target.value as MatchStatus)} 
                         className={`w-full px-3 py-2 border rounded-xl text-xs md:text-sm focus:ring-2 focus:ring-magenta focus:border-transparent outline-none font-bold ${
                           status === 'finished' ? 'text-magenta' : ''
@@ -1069,11 +1084,11 @@ export default function MatchEntry() {
                     <div className="space-y-2 md:space-y-4">
                       <label className="block text-[10px] md:text-sm font-bold text-magenta-dark uppercase tracking-widest">Peringkat & Kumpulan</label>
                       <div className="grid grid-cols-2 gap-3 md:gap-4">
-                        <select value={stage} onChange={(e) => setStage(e.target.value as MatchStage)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm focus:ring-2 focus:ring-magenta focus:border-transparent outline-none">
+                        <select value={stage || 'group'} onChange={(e) => setStage(e.target.value as MatchStage)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm focus:ring-2 focus:ring-magenta focus:border-transparent outline-none">
                           {STAGES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                         </select>
                         {stage === 'group' && (
-                          <select value={formGroupId} onChange={(e) => setFormGroupId(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm focus:ring-2 focus:ring-magenta focus:border-transparent outline-none">
+                          <select value={formGroupId || ''} onChange={(e) => setFormGroupId(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm focus:ring-2 focus:ring-magenta focus:border-transparent outline-none">
                             <option value="">Pilih Kumpulan</option>
                             {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                           </select>
@@ -1098,14 +1113,14 @@ export default function MatchEntry() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 bg-pink-gradient p-4 md:p-6 rounded-2xl border border-pink-light">
                     <div className="space-y-3 md:space-y-4">
                       <label className="block text-[10px] md:text-sm font-black text-magenta-dark uppercase tracking-widest">Pasukan A</label>
-                      <select value={teamAId} onChange={(e) => setTeamAId(e.target.value)} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs md:text-sm focus:ring-2 focus:ring-magenta focus:border-transparent outline-none">
+                      <select value={teamAId || ''} onChange={(e) => setTeamAId(e.target.value)} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs md:text-sm focus:ring-2 focus:ring-magenta focus:border-transparent outline-none">
                         <option value="">Pilih Pasukan A</option>
                         {getFilteredTeams(stage, teamAId, teamBId).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                       </select>
                       
                       <div className="space-y-2 md:space-y-3">
                         <div className="flex gap-2">
-                          <select value={newScorerNameA} onChange={(e) => setNewScorerNameA(e.target.value)} className="flex-1 px-2 md:px-3 py-1.5 md:py-2 bg-white border border-gray-200 rounded-xl text-[10px] md:text-sm">
+                          <select value={newScorerNameA || ''} onChange={(e) => setNewScorerNameA(e.target.value)} className="flex-1 px-2 md:px-3 py-1.5 md:py-2 bg-white border border-gray-200 rounded-xl text-[10px] md:text-sm">
                             <option value="">Tambah Penjaring</option>
                             {[...getTeamPlayers(teamAId)]
                               .sort((a, b) => POSITION_ORDER.indexOf(a.position) - POSITION_ORDER.indexOf(b.position) || a.name.localeCompare(b.name))
@@ -1133,14 +1148,14 @@ export default function MatchEntry() {
 
                     <div className="space-y-3 md:space-y-4">
                       <label className="block text-[10px] md:text-sm font-black text-magenta-dark uppercase tracking-widest">Pasukan B</label>
-                      <select value={teamBId} onChange={(e) => setTeamBId(e.target.value)} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs md:text-sm focus:ring-2 focus:ring-magenta focus:border-transparent outline-none">
+                      <select value={teamBId || ''} onChange={(e) => setTeamBId(e.target.value)} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs md:text-sm focus:ring-2 focus:ring-magenta focus:border-transparent outline-none">
                         <option value="">Pilih Pasukan B</option>
                         {getFilteredTeams(stage, teamBId, teamAId).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                       </select>
 
                       <div className="space-y-2 md:space-y-3">
                         <div className="flex gap-2">
-                          <select value={newScorerNameB} onChange={(e) => setNewScorerNameB(e.target.value)} className="flex-1 px-2 md:px-3 py-1.5 md:py-2 bg-white border border-gray-200 rounded-xl text-[10px] md:text-sm">
+                          <select value={newScorerNameB || ''} onChange={(e) => setNewScorerNameB(e.target.value)} className="flex-1 px-2 md:px-3 py-1.5 md:py-2 bg-white border border-gray-200 rounded-xl text-[10px] md:text-sm">
                             <option value="">Tambah Penjaring</option>
                             {[...getTeamPlayers(teamBId)]
                               .sort((a, b) => POSITION_ORDER.indexOf(a.position) - POSITION_ORDER.indexOf(b.position) || a.name.localeCompare(b.name))

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { Team, Group } from '../types';
-import { Plus, Trash2, LayoutGrid, Users, ArrowRightLeft, X, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, LayoutGrid, Users, ArrowRightLeft, X, CheckCircle, AlertTriangle, ChevronUp, ChevronDown } from 'lucide-react';
 
 export default function GroupManagement() {
   const [teams, setTeams] = useState<Team[]>([]);
@@ -90,19 +90,69 @@ export default function GroupManagement() {
 
   const handleAssignTeam = async (teamId: string, groupId: string | null) => {
     try {
-      await updateDoc(doc(db, 'teams', teamId), { 
-        groupId: groupId || null,
-        groupPosition: groupId ? (teams.filter(t => t.groupId === groupId).length + 1) : null
-      });
-      if (!groupId) {
-        showNotification('Pasukan berjaya dikeluarkan dari kumpulan.');
-      } else {
+      if (groupId) {
+        const teamsInGroup = teams.filter(t => t.groupId === groupId);
+        // Limit to 6 teams per group as per MSSD Tuaran 2026 specs (A1-A6)
+        if (teamsInGroup.length >= 6) {
+          showNotification('Kumpulan sudah penuh (maksimum 6 pasukan).', 'error');
+          return;
+        }
+        
+        await updateDoc(doc(db, 'teams', teamId), { 
+          groupId: groupId,
+          groupPosition: teamsInGroup.length + 1
+        });
         const groupName = groups.find(g => g.id === groupId)?.name || 'kumpulan';
         showNotification(`Pasukan berjaya dimasukkan ke ${groupName}.`);
+      } else {
+        const team = teams.find(t => t.id === teamId);
+        if (!team) return;
+        
+        const oldGroupId = team.groupId;
+        await updateDoc(doc(db, 'teams', teamId), { 
+          groupId: null,
+          groupPosition: null
+        });
+
+        // Reorder remaining teams in the old group
+        if (oldGroupId) {
+          const remainingTeams = teams
+            .filter(t => t.groupId === oldGroupId && t.id !== teamId)
+            .sort((a, b) => (a.groupPosition || 0) - (b.groupPosition || 0));
+          
+          for (let i = 0; i < remainingTeams.length; i++) {
+            await updateDoc(doc(db, 'teams', remainingTeams[i].id), { 
+              groupPosition: i + 1
+            });
+          }
+        }
+        showNotification('Pasukan berjaya dikeluarkan dari kumpulan.');
       }
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, 'teams');
       showNotification('Ralat semasa mengemaskini kumpulan pasukan.', 'error');
+    }
+  };
+
+  const handleMoveTeam = async (teamId: string, direction: 'up' | 'down') => {
+    const team = teams.find(t => t.id === teamId);
+    if (!team || !team.groupId || !team.groupPosition) return;
+
+    const groupTeams = teams
+      .filter(t => t.groupId === team.groupId)
+      .sort((a, b) => (a.groupPosition || 0) - (b.groupPosition || 0));
+
+    const currentIndex = groupTeams.findIndex(t => t.id === teamId);
+    if (direction === 'up' && currentIndex > 0) {
+      const otherTeam = groupTeams[currentIndex - 1];
+      await updateDoc(doc(db, 'teams', team.id), { groupPosition: team.groupPosition - 1 });
+      await updateDoc(doc(db, 'teams', otherTeam.id), { groupPosition: otherTeam.groupPosition + 1 });
+      showNotification('Kedudukan pasukan dikemaskini.');
+    } else if (direction === 'down' && currentIndex < groupTeams.length - 1) {
+      const otherTeam = groupTeams[currentIndex + 1];
+      await updateDoc(doc(db, 'teams', team.id), { groupPosition: team.groupPosition + 1 });
+      await updateDoc(doc(db, 'teams', otherTeam.id), { groupPosition: otherTeam.groupPosition - 1 });
+      showNotification('Kedudukan pasukan dikemaskini.');
     }
   };
 
@@ -232,7 +282,7 @@ export default function GroupManagement() {
                               {groupTeams.map((team, index) => (
                                 <tr key={team.id} className="hover:bg-gray-50">
                                   <td className="px-2 md:px-3 py-1.5 md:py-2 font-bold text-matcha">
-                                    {groupLetter}{index + 1}
+                                    {groupLetter}{team.groupPosition || index + 1}
                                   </td>
                                   <td className="px-2 md:px-3 py-1.5 md:py-2 text-gray-800 flex items-center gap-1.5 md:gap-2">
                                     {team.logoUrl && (
@@ -240,14 +290,32 @@ export default function GroupManagement() {
                                     )}
                                     <span className="break-words leading-tight">{team.name}</span>
                                   </td>
-                                  <td className="px-2 md:px-3 py-1.5 md:py-2 text-center">
-                                    <button 
-                                      onClick={() => handleAssignTeam(team.id, null)}
-                                      className="text-red-400 hover:text-red-600 p-1"
-                                      title="Keluarkan dari kumpulan"
-                                    >
-                                      <X className="h-3 w-3 md:h-4 md:w-4" />
-                                    </button>
+                                  <td className="px-1 md:px-2 py-1.5 md:py-2 text-center">
+                                    <div className="flex items-center justify-center gap-0.5">
+                                      <button 
+                                        onClick={() => handleMoveTeam(team.id, 'up')}
+                                        disabled={index === 0}
+                                        className="text-gray-400 hover:text-matcha disabled:opacity-20 p-0.5"
+                                        title="Pindah ke atas (Gunakan ini untuk tetapkan posisi A1, A2...)"
+                                      >
+                                        <ChevronUp className="h-3 w-3 md:h-4 md:w-4" />
+                                      </button>
+                                      <button 
+                                        onClick={() => handleMoveTeam(team.id, 'down')}
+                                        disabled={index === groupTeams.length - 1}
+                                        className="text-gray-400 hover:text-matcha disabled:opacity-20 p-0.5"
+                                        title="Pindah ke bawah"
+                                      >
+                                        <ChevronDown className="h-3 w-3 md:h-4 md:w-4" />
+                                      </button>
+                                      <button 
+                                        onClick={() => handleAssignTeam(team.id, null)}
+                                        className="text-red-400 hover:text-red-600 p-0.5 ml-1"
+                                        title="Keluarkan dari kumpulan"
+                                      >
+                                        <X className="h-3 w-3 md:h-4 md:w-4" />
+                                      </button>
+                                    </div>
                                   </td>
                                 </tr>
                               ))}

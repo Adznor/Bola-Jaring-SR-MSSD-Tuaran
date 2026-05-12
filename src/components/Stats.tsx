@@ -210,7 +210,7 @@ export default function Stats() {
                         {team.logoUrl && (
                           <img src={team.logoUrl} alt="" className="w-6 h-6 md:w-8 md:h-8 object-contain bg-white p-0.5 md:1 rounded-lg border border-gray-100 shrink-0" referrerPolicy="no-referrer" />
                         )}
-                        <span className="break-words">{team.name}</span>
+                        <span className="break-words whitespace-normal leading-tight">{team.name}</span>
                       </td>
                       <td className="px-2 md:4 py-2 md:3 text-center">
                         <div className="flex items-center justify-center gap-1 md:2">
@@ -345,7 +345,7 @@ export default function Stats() {
           <div className="flex items-center space-x-2 bg-gray-50 p-1 rounded-lg border border-gray-100 self-start">
             <Filter className="h-3 w-3 md:h-4 md:w-4 text-gray-400 ml-1 md:2" />
             <select 
-              value={selectedStage}
+              value={selectedStage || 'all'}
               onChange={(e) => setSelectedStage(e.target.value as MatchStage | 'all')}
               className="bg-transparent border-none text-[9px] md:text-sm font-bold text-gray-600 focus:ring-0 cursor-pointer pr-5 md:8"
             >
@@ -374,7 +374,7 @@ export default function Stats() {
                 {team.logoUrl && (
                   <img src={team.logoUrl} alt="" className="w-8 h-8 md:w-12 md:h-12 object-contain bg-white p-1 rounded-lg border border-gray-100 shadow-sm shrink-0" referrerPolicy="no-referrer" />
                 )}
-                <h4 className="text-[10px] md:text-sm font-black text-gray-800 uppercase tracking-tight leading-tight truncate">{team.name}</h4>
+                <h4 className="text-[10px] md:text-sm font-black text-gray-800 uppercase tracking-tight leading-tight whitespace-normal">{team.name}</h4>
               </div>
 
               <div className="flex items-end gap-1 shrink-0">
@@ -416,12 +416,12 @@ export default function Stats() {
                       {idx + 1}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-gray-800 text-sm truncate uppercase">{player.name}</p>
+                      <p className="font-bold text-gray-800 text-sm whitespace-normal leading-tight uppercase">{player.name}</p>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         {player.teamLogo && (
                           <img src={player.teamLogo} alt="" className="w-4 h-4 object-contain bg-white p-0.5 rounded border border-gray-100" referrerPolicy="no-referrer" />
                         )}
-                        <p className="text-[10px] text-gray-500 font-medium truncate">{player.team}</p>
+                        <p className="text-[10px] text-gray-500 font-medium whitespace-normal leading-tight">{player.team}</p>
                       </div>
                     </div>
                   </div>
@@ -451,7 +451,7 @@ export default function Stats() {
                   )}
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-white font-black text-lg md:text-xl uppercase tracking-tight truncate">
+                  <h3 className="text-white font-black text-lg md:text-xl uppercase tracking-tight whitespace-normal">
                     {teams.find(t => t.id === selectedTeamId)?.name}
                   </h3>
                   <p className="text-pink-light text-[10px] md:text-xs font-bold uppercase tracking-widest">Senarai Penjaring Terperinci</p>
@@ -488,7 +488,7 @@ export default function Stats() {
                       </div>
                       <div className="space-y-0.5">
                         <p className="text-[8px] text-gray-400 font-black uppercase tracking-widest">Lawan</p>
-                        <p className="text-[10px] md:text-xs font-bold text-gray-700 truncate">{detail.opponent}</p>
+                        <p className="text-[10px] md:text-xs font-bold text-gray-700 whitespace-normal leading-tight">{detail.opponent}</p>
                       </div>
                       <div className="space-y-0.5">
                         <p className="text-[8px] text-gray-400 font-black uppercase tracking-widest">Tarikh</p>
