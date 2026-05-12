@@ -97,7 +97,7 @@ export default function AutoScheduler() {
       const startTimeStr = info.dailyStartTime;
       const endTimeStr = info.dailyEndTime;
       const dates = info.tournamentDates;
-      const courts = ['Gelanggang A', 'Gelanggang B'];
+      const courts = ['Gelanggang 1', 'Gelanggang 2'];
 
       let currentMatchIdx = 0;
       const teamLastMatchTime = new Map<string, number>(); // Team ID -> Timestamp of last match end
@@ -185,8 +185,8 @@ export default function AutoScheduler() {
           if (sSelf > sOpp) pts += 3;
           else if (sSelf === sOpp) pts += 1;
         });
-        return { id: team.id, name: team.name, pts, gd: gf - ga, gf };
-      }).sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
+        return { id: team.id, name: team.name, pts, gd: gf - ga, gf, groupPosition: team.groupPosition || 0 };
+      }).sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf || a.groupPosition - b.groupPosition);
       standingsByGroup[group.name] = standings;
     });
 
@@ -249,7 +249,7 @@ export default function AutoScheduler() {
           scoreA: 0,
           scoreB: 0,
           scorers: [],
-          court: i % 2 === 0 ? 'Gelanggang A' : 'Gelanggang B',
+          court: i % 2 === 0 ? 'Gelanggang 1' : 'Gelanggang 2',
           date: info?.tournamentDates?.[info.tournamentDates.length - 1] || '',
           time: currentStartTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
         });
@@ -281,7 +281,7 @@ export default function AutoScheduler() {
           scoreA: 0,
           scoreB: 0,
           scorers: [],
-          court: 'Gelanggang A',
+          court: 'Gelanggang 1',
           date: info?.tournamentDates?.[info.tournamentDates.length - 1] || '',
           time: currentStartTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
           placeholderLabel: p.label

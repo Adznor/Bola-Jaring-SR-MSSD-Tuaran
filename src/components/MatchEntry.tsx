@@ -2,9 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Team, Match, MatchStage, MatchStatus, Scorer, Group, POSITION_ORDER, TeamStats } from '../types';
-import { Plus, Trash2, CalendarDays, Trophy, Save, X, UserPlus, Zap, Clock, Play, CheckCircle, LayoutGrid, Search, Filter } from 'lucide-react';
+import { Plus, Trash2, CalendarDays, Trophy, Save, X, UserPlus, Zap, Clock, Play, CheckCircle, LayoutGrid, Search, Filter, Users } from 'lucide-react';
 
-const COURTS = ['Gelanggang A', 'Gelanggang B', 'Gelanggang C', 'Gelanggang D'];
+const COURTS = ['Gelanggang 1', 'Gelanggang 2'];
 const STAGES: { value: MatchStage; label: string }[] = [
   { value: 'group', label: 'Peringkat Kumpulan' },
   { value: 'quarter', label: 'Suku Akhir' },
@@ -34,10 +34,14 @@ export default function MatchEntry() {
   const [selectedStageFilter, setSelectedStageFilter] = useState('all');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('all');
   const [selectedTimeFilter, setSelectedTimeFilter] = useState('all');
+  const [selectedCourtFilter, setSelectedCourtFilter] = useState('all');
+  const [selectedGroupFilter, setSelectedGroupFilter] = useState('all');
+  const [layoutMode, setLayoutMode] = useState<'card' | 'table'>('card');
+  const [sortOrder, setSortOrder] = useState<'timeAsc' | 'timeDesc' | 'stage'>('stage');
 
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
-  const [court, setCourt] = useState<Match['court']>('Gelanggang A');
+  const [court, setCourt] = useState<Match['court']>('Gelanggang 1');
   const [teamAId, setTeamAId] = useState('');
   const [teamBId, setTeamBId] = useState('');
   const [scoreA, setScoreA] = useState(0);
@@ -166,7 +170,7 @@ export default function MatchEntry() {
   const resetForm = () => {
     setDate('');
     setTime('');
-    setCourt('Gelanggang A');
+    setCourt('Gelanggang 1');
     setTeamAId('');
     setTeamBId('');
     setScoreA(0);
@@ -404,27 +408,28 @@ export default function MatchEntry() {
         const matchesDate = selectedDate === 'all' || match.date === selectedDate;
         
         let matchesStage = selectedStageFilter === 'all';
-        if (selectedStageFilter === 'Peringkat Kumpulan') {
-          matchesStage = match.stage === 'group';
-        } else if (selectedStageFilter === 'Peringkat Kalah Singkir') {
+        if (selectedStageFilter === 'knockout_all') {
           matchesStage = match.stage !== 'group';
         } else if (!matchesStage) {
-          matchesStage = match.stage === selectedStageFilter || 
-                         {
-                           group: 'Peringkat Kumpulan',
-                           quarter: 'Suku Akhir',
-                           semi: 'Separuh Akhir',
-                           third_place: 'Penentuan Tempat Ke-3',
-                           final: 'Akhir'
-                         }[match.stage] === selectedStageFilter;
+          matchesStage = match.stage === selectedStageFilter;
         }
 
         const matchesStatus = selectedStatusFilter === 'all' || (match.status || 'upcoming') === selectedStatusFilter;
         const matchesTime = selectedTimeFilter === 'all' || match.time === selectedTimeFilter;
-        return matchesSearch && matchesDate && matchesStage && matchesStatus && matchesTime;
+        const matchesCourt = selectedCourtFilter === 'all' || match.court === selectedCourtFilter;
+        const matchesGroup = selectedGroupFilter === 'all' || match.groupId === selectedGroupFilter;
+
+        return matchesSearch && matchesDate && matchesStage && matchesStatus && matchesTime && matchesCourt && matchesGroup;
       })
       .sort((a, b) => {
-        // 1. Stage order: final > semi > third_place > quarter > group
+        if (sortOrder === 'timeAsc' || sortOrder === 'timeDesc') {
+          const dateComp = (a.date || '').localeCompare(b.date || '');
+          if (dateComp !== 0) return sortOrder === 'timeAsc' ? dateComp : -dateComp;
+          const timeComp = (a.time || '').localeCompare(b.time || '');
+          return sortOrder === 'timeAsc' ? timeComp : -timeComp;
+        }
+
+        // Default: Stage order
         const stageOrder: Record<MatchStage, number> = {
           final: 0,
           semi: 1,
@@ -594,6 +599,102 @@ export default function MatchEntry() {
     );
   }
 
+  function TableView({ matches }: { matches: Match[] }) {
+    const matchesByDate = useMemo(() => {
+      const grouped: Record<string, Match[]> = {};
+      matches.forEach(m => {
+        if (!grouped[m.date]) grouped[m.date] = [];
+        grouped[m.date].push(m);
+      });
+      return Object.entries(grouped).sort((a, b) => b[0].localeCompare(a[0]));
+    }, [matches]);
+
+    return (
+      <div className="space-y-8">
+        {matchesByDate.map(([date, dateMatches]) => (
+          <div key={date} className="space-y-4">
+            <div className="bg-gray-100 px-4 py-2 rounded-lg inline-block">
+              <h4 className="text-gray-700 font-black uppercase tracking-widest text-xs flex items-center gap-2">
+                <CalendarDays className="h-4 w-4" /> {date}
+              </h4>
+            </div>
+            
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              {COURTS.map(court => {
+                const courtMatches = dateMatches.filter(m => m.court === court).sort((a, b) => a.time.localeCompare(b.time));
+                if (courtMatches.length === 0) return null;
+
+                return (
+                  <div key={court} className="bg-white rounded-2xl shadow-sm border border-pink-light overflow-hidden">
+                    <div className="bg-matcha-gradient px-4 py-2">
+                      <h5 className="text-white font-black uppercase tracking-widest text-[10px]">{court}</h5>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead className="bg-gray-50 border-b border-gray-100">
+                          <tr>
+                            <th className="px-3 py-2 text-left font-bold text-gray-500 uppercase tracking-widest text-[9px]">Masa</th>
+                            <th className="px-3 py-2 text-center font-bold text-gray-500 uppercase tracking-widest text-[9px]">Perlawanan</th>
+                            <th className="px-3 py-2 text-center font-bold text-gray-500 uppercase tracking-widest text-[9px]">Hasil</th>
+                            <th className="px-3 py-2 text-right font-bold text-gray-500 uppercase tracking-widest text-[9px]">Peringkat</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {courtMatches.map(match => (
+                            <tr 
+                              key={match.id} 
+                              onClick={() => handleEdit(match)}
+                              className="hover:bg-gray-50 cursor-pointer transition-colors"
+                            >
+                              <td className="px-3 py-3 font-bold text-gray-700 whitespace-nowrap">{match.time}</td>
+                              <td className="px-3 py-3">
+                                <div className="flex items-center justify-center gap-3">
+                                  <div className="flex items-center gap-1.5 w-[100px] justify-end">
+                                    <span className="text-right font-bold truncate">{match.teamAId ? getTeamName(match.teamAId) : (match.placeholderLabel?.split('vs')[0] || 'TBA')}</span>
+                                    <div className="w-5 h-5 flex-shrink-0 bg-gray-50 rounded border border-gray-100 p-0.5">
+                                      {match.teamAId && getTeamLogo(match.teamAId) && (
+                                        <img src={getTeamLogo(match.teamAId)} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                                      )}
+                                    </div>
+                                  </div>
+                                  <span className="text-gray-300 font-bold">vs</span>
+                                  <div className="flex items-center gap-1.5 w-[100px] justify-start">
+                                    <div className="w-5 h-5 flex-shrink-0 bg-gray-50 rounded border border-gray-100 p-0.5">
+                                      {match.teamBId && getTeamLogo(match.teamBId) && (
+                                        <img src={getTeamLogo(match.teamBId)} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                                      )}
+                                    </div>
+                                    <span className="text-left font-bold truncate">{match.teamBId ? getTeamName(match.teamBId) : (match.placeholderLabel?.split('vs')[1] || 'TBA')}</span>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-3 py-3 text-center">
+                                <div className="inline-flex items-center gap-1.5 font-black text-matcha-dark bg-matcha/5 px-2 py-0.5 rounded border border-matcha/10">
+                                  <span>{match.scoreA}</span>
+                                  <span className="text-gray-300">-</span>
+                                  <span>{match.scoreB}</span>
+                                </div>
+                              </td>
+                              <td className="px-3 py-3 text-right">
+                                <span className={`px-2 py-0.5 rounded text-[8px] font-bold border ${STATUSES.find(s => s.value === (match.status || 'upcoming'))?.color}`}>
+                                  {match.stage === 'group' ? (groups.find(g => g.id === match.groupId)?.name || 'KUM') : match.stage.toUpperCase()}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   const getMatch = (teamAId: string, teamBId: string) => {
     return matches.find(m => 
       m.stage === 'group' && 
@@ -736,7 +837,32 @@ export default function MatchEntry() {
               )}
             </div>
             
-            <div className="flex flex-wrap gap-2 sm:gap-4">
+          <div className="flex flex-wrap gap-2 sm:gap-4">
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
+                <LayoutGrid className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
+                <select
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value as any)}
+                  className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
+                >
+                  <option value="stage">Susunan: Peringkat</option>
+                  <option value="timeAsc">Masa: Awal ke Akhir</option>
+                  <option value="timeDesc">Masa: Akhir ke Awal</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
+                <LayoutGrid className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
+                <select
+                  value={layoutMode}
+                  onChange={(e) => setLayoutMode(e.target.value as any)}
+                  className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
+                >
+                  <option value="card">Paparan: Kad</option>
+                  <option value="table">Paparan: Jadual (Table)</option>
+                </select>
+              </div>
+
               <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
                 <CalendarDays className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
                 <select
@@ -786,16 +912,46 @@ export default function MatchEntry() {
                   onChange={(e) => setSelectedStageFilter(e.target.value)}
                   className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
                 >
-                  <option value="all">Semua Peringkat</option>
+                  <option value="all">Peringkat: Semua</option>
                   {filterStages.map(stage => (
-                    <option key={stage.value} value={stage.label}>{stage.label}</option>
+                    <option key={stage.value} value={stage.value}>{stage.label}</option>
                   ))}
                 </select>
               </div>
+
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
+                <LayoutGrid className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
+                <select
+                  value={selectedCourtFilter}
+                  onChange={(e) => setSelectedCourtFilter(e.target.value)}
+                  className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
+                >
+                  <option value="all">Gelanggang: Semua</option>
+                  {COURTS.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedStageFilter === 'group' && (
+                <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
+                  <Users className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
+                  <select
+                    value={selectedGroupFilter}
+                    onChange={(e) => setSelectedGroupFilter(e.target.value)}
+                    className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
+                  >
+                    <option value="all">Kumpulan: Semua</option>
+                    {groups.map(g => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           </div>
           
-          {(searchTerm || selectedDate !== 'all' || selectedStageFilter !== 'all' || selectedStatusFilter !== 'all' || selectedTimeFilter !== 'all') && (
+          {(searchTerm || selectedDate !== 'all' || selectedStageFilter !== 'all' || selectedStatusFilter !== 'all' || selectedTimeFilter !== 'all' || selectedCourtFilter !== 'all' || selectedGroupFilter !== 'all') && (
             <div className="flex justify-between items-center pt-2 border-t border-gray-50">
               <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">
                 Menunjukkan {filteredMatches.length} perlawanan
@@ -807,6 +963,8 @@ export default function MatchEntry() {
                   setSelectedStageFilter('all');
                   setSelectedStatusFilter('all');
                   setSelectedTimeFilter('all');
+                  setSelectedCourtFilter('all');
+                  setSelectedGroupFilter('all');
                 }}
                 className="text-xs text-matcha font-bold hover:underline"
               >
@@ -1034,56 +1192,62 @@ export default function MatchEntry() {
       )}
 
       <div className="space-y-10">
-        {(selectedStageFilter === 'all' || selectedStageFilter === 'group') && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center border-b border-pink-light pb-2">
-              <h4 className="font-black text-magenta-dark uppercase tracking-widest text-sm flex items-center gap-2">
-                <Trophy className="h-5 w-5" /> Peringkat Kumpulan
-              </h4>
-              <button 
-                onClick={() => { setStage('group'); setShowForm(true); setEditingMatch(null); }}
-                className="text-xs bg-magenta-gradient text-white hover:opacity-90 px-4 py-2 rounded-full transition-all flex items-center gap-1 font-black uppercase tracking-widest shadow-md"
-              >
-                <Plus className="h-4 w-4" /> Tambah Perlawanan
-              </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filteredMatches.filter(m => m.stage === 'group').map(match => <MatchCard key={match.id} match={match} />)}
-              {filteredMatches.filter(m => m.stage === 'group').length === 0 && (
-                <div className="col-span-full bg-white/50 border border-dashed border-pink-light rounded-2xl p-12 text-center text-gray-400 text-sm italic">Tiada perlawanan didaftarkan untuk Peringkat Kumpulan</div>
-              )}
-            </div>
-          </div>
-        )}
+        {layoutMode === 'table' ? (
+          <TableView matches={filteredMatches} />
+        ) : (
+          <>
+            {(selectedStageFilter === 'all' || selectedStageFilter === 'group') && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center border-b border-pink-light pb-2">
+                  <h4 className="font-black text-magenta-dark uppercase tracking-widest text-sm flex items-center gap-2">
+                    <Trophy className="h-5 w-5" /> Peringkat Kumpulan
+                  </h4>
+                  <button 
+                    onClick={() => { setStage('group'); setShowForm(true); setEditingMatch(null); }}
+                    className="text-xs bg-magenta-gradient text-white hover:opacity-90 px-4 py-2 rounded-full transition-all flex items-center gap-1 font-black uppercase tracking-widest shadow-md"
+                  >
+                    <Plus className="h-4 w-4" /> Tambah Perlawanan
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {filteredMatches.filter(m => m.stage === 'group').map(match => <MatchCard key={match.id} match={match} />)}
+                  {filteredMatches.filter(m => m.stage === 'group').length === 0 && (
+                    <div className="col-span-full bg-white/50 border border-dashed border-pink-light rounded-2xl p-12 text-center text-gray-400 text-sm italic">Tiada perlawanan didaftarkan untuk Peringkat Kumpulan</div>
+                  )}
+                </div>
+              </div>
+            )}
 
-        {(selectedStageFilter === 'all' || selectedStageFilter === 'knockout_all' || STAGES.filter(s => s.value !== 'group').some(s => s.value === selectedStageFilter)) && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center border-b border-pink-light pb-2">
-              <h4 className="font-black text-magenta-dark uppercase tracking-widest text-sm flex items-center gap-2">
-                <Trophy className="h-5 w-5" /> Peringkat Kalah Singkir
-              </h4>
-              <button 
-                onClick={() => { 
-                  let defaultStage: MatchStage = 'quarter';
-                  if (selectedStageFilter !== 'all' && selectedStageFilter !== 'knockout_all' && STAGES.some(s => s.value === selectedStageFilter)) {
-                    defaultStage = selectedStageFilter as MatchStage;
-                  }
-                  setStage(defaultStage); 
-                  setShowForm(true); 
-                  setEditingMatch(null); 
-                }}
-                className="text-xs bg-magenta-gradient text-white hover:opacity-90 px-4 py-2 rounded-full transition-all flex items-center gap-1 font-black uppercase tracking-widest shadow-md"
-              >
-                <Plus className="h-4 w-4" /> Tambah Perlawanan
-              </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filteredMatches.filter(m => m.stage !== 'group').map(match => <MatchCard key={match.id} match={match} />)}
-              {filteredMatches.filter(m => m.stage !== 'group').length === 0 && (
-                <div className="col-span-full bg-white/50 border border-dashed border-pink-light rounded-2xl p-12 text-center text-gray-400 text-sm italic">Tiada perlawanan didaftarkan untuk Peringkat Kalah Singkir</div>
-              )}
-            </div>
-          </div>
+            {(selectedStageFilter === 'all' || selectedStageFilter === 'knockout_all' || STAGES.filter(s => s.value !== 'group').some(s => s.value === selectedStageFilter)) && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center border-b border-pink-light pb-2">
+                  <h4 className="font-black text-magenta-dark uppercase tracking-widest text-sm flex items-center gap-2">
+                    <Trophy className="h-5 w-5" /> Peringkat Kalah Singkir
+                  </h4>
+                  <button 
+                    onClick={() => { 
+                      let defaultStage: MatchStage = 'quarter';
+                      if (selectedStageFilter !== 'all' && selectedStageFilter !== 'knockout_all' && STAGES.some(s => s.value === selectedStageFilter)) {
+                        defaultStage = selectedStageFilter as MatchStage;
+                      }
+                      setStage(defaultStage); 
+                      setShowForm(true); 
+                      setEditingMatch(null); 
+                    }}
+                    className="text-xs bg-magenta-gradient text-white hover:opacity-90 px-4 py-2 rounded-full transition-all flex items-center gap-1 font-black uppercase tracking-widest shadow-md"
+                  >
+                    <Plus className="h-4 w-4" /> Tambah Perlawanan
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {filteredMatches.filter(m => m.stage !== 'group').map(match => <MatchCard key={match.id} match={match} />)}
+                  {filteredMatches.filter(m => m.stage !== 'group').length === 0 && (
+                    <div className="col-span-full bg-white/50 border border-dashed border-pink-light rounded-2xl p-12 text-center text-gray-400 text-sm italic">Tiada perlawanan didaftarkan untuk Peringkat Kalah Singkir</div>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

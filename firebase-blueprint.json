@@ -42,7 +42,7 @@
         "id": { "type": "string" },
         "date": { "type": "string" },
         "time": { "type": "string" },
-        "court": { "type": "string", "enum": ["Gelanggang A", "Gelanggang B", "Gelanggang C", "Gelanggang D"] },
+        "court": { "type": "string", "enum": ["Gelanggang 1", "Gelanggang 2"] },
         "teamAId": { "type": "string" },
         "teamBId": { "type": "string" },
         "scoreA": { "type": "number" },

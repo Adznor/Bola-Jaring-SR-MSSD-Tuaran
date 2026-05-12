@@ -38,7 +38,7 @@ export interface Match {
   id: string;
   date: string;
   time: string;
-  court: 'Gelanggang A' | 'Gelanggang B' | 'Gelanggang C' | 'Gelanggang D';
+  court: 'Gelanggang 1' | 'Gelanggang 2';
   teamAId?: string;
   teamBId?: string;
   scoreA: number;

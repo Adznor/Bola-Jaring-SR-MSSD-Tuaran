@@ -26,6 +26,9 @@ export default function PublicView() {
   const [selectedStageFilter, setSelectedStageFilter] = useState('all');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('all');
   const [selectedTimeFilter, setSelectedTimeFilter] = useState('all');
+  const [selectedCourtFilter, setSelectedCourtFilter] = useState('all');
+  const [layoutMode, setLayoutMode] = useState<'card' | 'table'>('card');
+  const [sortOrder, setSortOrder] = useState<'timeAsc' | 'timeDesc' | 'stage'>('stage');
 
   useEffect(() => {
     const unsubTeams = onSnapshot(collection(db, 'teams'), (snapshot) => {
@@ -266,6 +269,121 @@ export default function PublicView() {
 
   const getTeamName = (id: string) => teams.find(t => t.id === id)?.name || 'N/A';
   const getTeamLogo = (id: string) => teams.find(t => t.id === id)?.logoUrl;
+  const getTeamCodeForPublic = (teamId: string, groupId?: string) => {
+    if (!groupId) return '';
+    const group = groups.find(g => g.id === groupId);
+    if (!group) return '';
+    const groupLetter = group.name.split(' ').pop()?.charAt(0) || group.name.charAt(0);
+    const groupTeams = teams.filter(t => t.groupId === groupId).sort((a, b) => (a.groupPosition || 0) - (b.groupPosition || 0));
+    const index = groupTeams.findIndex(t => t.id === teamId);
+    return index >= 0 ? `${groupLetter}${index + 1}` : '';
+  };
+
+  function TableView({ matches }: { matches: Match[] }) {
+    const matchesByDate = useMemo(() => {
+      const grouped: Record<string, Match[]> = {};
+      matches.forEach(m => {
+        if (!grouped[m.date]) grouped[m.date] = [];
+        grouped[m.date].push(m);
+      });
+      return Object.entries(grouped).sort((a, b) => b[0].localeCompare(a[0]));
+    }, [matches]);
+
+    return (
+      <div className="space-y-8">
+        {matchesByDate.map(([date, dateMatches]) => (
+          <div key={date} className="space-y-4">
+            <div className="bg-gray-100 px-4 py-2 rounded-lg inline-block text-left">
+              <h4 className="text-gray-700 font-black uppercase tracking-widest text-xs flex items-center gap-2">
+                <CalendarDays className="h-4 w-4" /> {date}
+              </h4>
+            </div>
+            
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              {['Gelanggang 1', 'Gelanggang 2'].map(court => {
+                const courtMatches = dateMatches.filter(m => m.court === court).sort((a, b) => a.time.localeCompare(b.time));
+                if (courtMatches.length === 0) return null;
+
+                return (
+                  <div key={court} className="bg-white rounded-2xl shadow-sm border border-pink-light overflow-hidden">
+                    <div className="bg-matcha-gradient px-4 py-2 text-left">
+                      <h5 className="text-white font-black uppercase tracking-widest text-[10px]">{court}</h5>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead className="bg-gray-50 border-b border-gray-100">
+                          <tr>
+                            <th className="px-3 py-2 text-left font-bold text-gray-500 uppercase tracking-widest text-[9px]">Masa</th>
+                            <th className="px-3 py-2 text-center font-bold text-gray-500 uppercase tracking-widest text-[9px]">Perlawanan</th>
+                            <th className="px-3 py-2 text-center font-bold text-gray-500 uppercase tracking-widest text-[9px]">Hasil</th>
+                            <th className="px-3 py-2 text-right font-bold text-gray-500 uppercase tracking-widest text-[9px]">Peringkat</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {courtMatches.map(match => (
+                            <tr key={match.id} className="hover:bg-gray-50 transition-colors">
+                              <td className="px-3 py-3 font-bold text-gray-700 whitespace-nowrap text-left">{match.time}</td>
+                              <td className="px-3 py-3 text-center">
+                                <div className="flex items-center justify-center gap-3">
+                                  <div className="flex items-center gap-1.5 w-[100px] justify-end">
+                                    <div className="flex flex-col items-end">
+                                      <span className="text-right font-bold truncate text-[10px] sm:text-xs">
+                                        {match.teamAId ? getTeamName(match.teamAId) : (match.placeholderLabel?.split('vs')[0] || 'TBA')}
+                                      </span>
+                                      {match.teamAId && match.stage === 'group' && (
+                                        <span className="text-[8px] font-black text-matcha uppercase tracking-tight">{getTeamCodeForPublic(match.teamAId, match.groupId)}</span>
+                                      )}
+                                    </div>
+                                    <div className="w-5 h-5 flex-shrink-0 bg-gray-50 rounded border border-gray-100 p-0.5">
+                                      {match.teamAId && getTeamLogo(match.teamAId) && (
+                                        <img src={getTeamLogo(match.teamAId)} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                                      )}
+                                    </div>
+                                  </div>
+                                  <span className="text-gray-300 font-bold">vs</span>
+                                  <div className="flex items-center gap-1.5 w-[100px] justify-start">
+                                    <div className="w-5 h-5 flex-shrink-0 bg-gray-50 rounded border border-gray-100 p-0.5">
+                                      {match.teamBId && getTeamLogo(match.teamBId) && (
+                                        <img src={getTeamLogo(match.teamBId)} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                                      )}
+                                    </div>
+                                    <div className="flex flex-col items-start text-left">
+                                      <span className="text-left font-bold truncate text-[10px] sm:text-xs">
+                                        {match.teamBId ? getTeamName(match.teamBId) : (match.placeholderLabel?.split('vs')[1] || 'TBA')}
+                                      </span>
+                                      {match.teamBId && match.stage === 'group' && (
+                                        <span className="text-[8px] font-black text-matcha uppercase tracking-tight">{getTeamCodeForPublic(match.teamBId, match.groupId)}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-3 py-3 text-center">
+                                <div className="inline-flex items-center gap-1.5 font-black text-matcha-dark bg-matcha/5 px-2 py-0.5 rounded border border-matcha/10">
+                                  <span>{match.scoreA}</span>
+                                  <span className="text-gray-300">-</span>
+                                  <span>{match.scoreB}</span>
+                                </div>
+                              </td>
+                              <td className="px-3 py-3 text-right">
+                                <span className={`px-2 py-0.5 rounded text-[8px] font-bold border ${STATUSES.find(s => s.value === (match.status || 'upcoming'))?.color}`}>
+                                  {match.stage === 'group' ? (groups.find(g => g.id === match.groupId)?.name || 'KUM') : match.stage.toUpperCase()}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   const uniqueDates = useMemo(() => {
     const dates = new Set(matches.map(m => m.date).filter(Boolean));
@@ -304,9 +422,18 @@ export default function PublicView() {
 
         const matchesStatus = selectedStatusFilter === 'all' || (match.status || 'upcoming') === selectedStatusFilter;
         const matchesTime = selectedTimeFilter === 'all' || match.time === selectedTimeFilter;
-        return matchesSearch && matchesDate && matchesStage && matchesStatus && matchesTime;
+        const matchesCourt = selectedCourtFilter === 'all' || match.court === selectedCourtFilter;
+
+        return matchesSearch && matchesDate && matchesStage && matchesStatus && matchesTime && matchesCourt;
       })
       .sort((a, b) => {
+        if (sortOrder === 'timeAsc' || sortOrder === 'timeDesc') {
+          const dateComp = (a.date || '').localeCompare(b.date || '');
+          if (dateComp !== 0) return sortOrder === 'timeAsc' ? dateComp : -dateComp;
+          const timeComp = (a.time || '').localeCompare(b.time || '');
+          return sortOrder === 'timeAsc' ? timeComp : -timeComp;
+        }
+
         // 1. Stage order: final > semi > third_place > quarter > group
         const stageOrder: Record<MatchStage, number> = {
           final: 0,
@@ -535,6 +662,31 @@ export default function PublicView() {
               
               <div className="flex flex-wrap gap-2 sm:gap-4">
                 <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
+                  <LayoutGrid className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
+                  <select
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(e.target.value as any)}
+                    className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
+                  >
+                    <option value="stage">Susunan: Peringkat</option>
+                    <option value="timeAsc">Masa: Awal ke Akhir</option>
+                    <option value="timeDesc">Masa: Akhir ke Awal</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
+                  <LayoutGrid className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
+                  <select
+                    value={layoutMode}
+                    onChange={(e) => setLayoutMode(e.target.value as any)}
+                    className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
+                  >
+                    <option value="card">Paparan: Kad</option>
+                    <option value="table">Paparan: Jadual (Table)</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
                   <CalendarDays className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
                   <select
                     value={selectedDate}
@@ -589,10 +741,24 @@ export default function PublicView() {
                     ))}
                   </select>
                 </div>
+
+                <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl">
+                  <LayoutGrid className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
+                  <select
+                    value={selectedCourtFilter}
+                    onChange={(e) => setSelectedCourtFilter(e.target.value)}
+                    className="bg-transparent text-[10px] sm:text-sm font-bold text-gray-600 outline-none cursor-pointer"
+                  >
+                    <option value="all">Gelanggang: Semua</option>
+                    {['Gelanggang 1', 'Gelanggang 2'].map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
             
-            {(searchTerm || selectedDate !== 'all' || selectedStageFilter !== 'all' || selectedStatusFilter !== 'all' || selectedTimeFilter !== 'all') && (
+            {(searchTerm || selectedDate !== 'all' || selectedStageFilter !== 'all' || selectedStatusFilter !== 'all' || selectedTimeFilter !== 'all' || selectedCourtFilter !== 'all') && (
               <div className="flex justify-between items-center pt-2 border-t border-gray-50">
                 <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">
                   Menunjukkan {filteredMatches.length} perlawanan
@@ -604,6 +770,7 @@ export default function PublicView() {
                     setSelectedStageFilter('all');
                     setSelectedStatusFilter('all');
                     setSelectedTimeFilter('all');
+                    setSelectedCourtFilter('all');
                   }}
                   className="text-xs text-matcha font-bold hover:underline"
                 >
@@ -613,105 +780,109 @@ export default function PublicView() {
             )}
           </div>
 
-          {['group', 'knockout', 'quarter', 'semi', 'third_place', 'final'].map(stage => {
-            const stageMatches = filteredMatches.filter(m => m.stage === stage);
-            if (stageMatches.length === 0) return null;
-            
-            const stageLabel = {
-              group: 'Peringkat Kumpulan',
-              knockout: 'Pusingan 12',
-              quarter: 'Suku Akhir',
-              semi: 'Separuh Akhir',
-              third_place: 'Penentuan Tempat Ke-3',
-              final: 'Akhir'
-            }[stage as MatchStage];
+          {layoutMode === 'table' ? (
+            <TableView matches={filteredMatches} />
+          ) : (
+            ['group', 'knockout', 'quarter', 'semi', 'third_place', 'final'].map(stage => {
+              const stageMatches = filteredMatches.filter(m => m.stage === stage);
+              if (stageMatches.length === 0) return null;
+              
+              const stageLabel = {
+                group: 'Peringkat Kumpulan',
+                knockout: 'Pusingan 12',
+                quarter: 'Suku Akhir',
+                semi: 'Separuh Akhir',
+                third_place: 'Penentuan Tempat Ke-3',
+                final: 'Akhir'
+              }[stage as MatchStage];
 
-            return (
-              <div key={stage} className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <div className="h-px bg-pink-light flex-1"></div>
-                  <h3 className="text-matcha-dark font-black uppercase tracking-widest text-sm">{stageLabel}</h3>
-                  <div className="h-px bg-pink-light flex-1"></div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {stageMatches.map(match => {
-                    const isFinished = match.status === 'finished';
-                    
-                    return (
-                      <div key={match.id} className={`rounded-xl sm:rounded-2xl border border-pink-light p-3 sm:p-4 shadow-sm hover:shadow-md transition-all group ${isFinished ? 'bg-matcha-light/5' : 'bg-white'}`}>
-                        {/* Match Info Header */}
-                        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 mb-4 pb-3 border-b border-gray-50">
-                          <span className="bg-matcha/10 text-matcha-dark px-2 py-0.5 rounded text-[8px] sm:text-[10px] font-black uppercase border border-matcha/20">
-                            {match.stage === 'group' ? (groups.find(g => g.id === match.groupId)?.name || 'KUMPULAN') : stageLabel}
-                          </span>
-                          <div className="flex items-center gap-1 text-[8px] sm:text-[10px] text-gray-500 font-bold">
-                            <CalendarDays className="h-3 w-3 text-matcha" />
-                            {match.date || 'TBA'}
+              return (
+                <div key={stage} className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <div className="h-px bg-pink-light flex-1"></div>
+                    <h3 className="text-matcha-dark font-black uppercase tracking-widest text-sm">{stageLabel}</h3>
+                    <div className="h-px bg-pink-light flex-1"></div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {stageMatches.map(match => {
+                      const isFinished = match.status === 'finished';
+                      
+                      return (
+                        <div key={match.id} className={`rounded-xl sm:rounded-2xl border border-pink-light p-3 sm:p-4 shadow-sm hover:shadow-md transition-all group ${isFinished ? 'bg-matcha-light/5' : 'bg-white'}`}>
+                          {/* Match Info Header */}
+                          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 mb-4 pb-3 border-b border-gray-50">
+                            <span className="bg-matcha/10 text-matcha-dark px-2 py-0.5 rounded text-[8px] sm:text-[10px] font-black uppercase border border-matcha/20">
+                              {match.stage === 'group' ? (groups.find(g => g.id === match.groupId)?.name || 'KUMPULAN') : stageLabel}
+                            </span>
+                            <div className="flex items-center gap-1 text-[8px] sm:text-[10px] text-gray-500 font-bold">
+                              <CalendarDays className="h-3 w-3 text-matcha" />
+                              {match.date || 'TBA'}
+                            </div>
+                            <div className="flex items-center gap-1 text-[8px] sm:text-[10px] text-gray-500 font-bold">
+                              <Clock className="h-3 w-3 text-matcha" />
+                              {match.time || 'TBA'}
+                            </div>
+                            <div className="text-[8px] sm:text-[10px] font-black text-matcha uppercase tracking-widest">
+                              {match.court}
+                            </div>
+                            <span className={`px-2 py-0.5 rounded text-[8px] sm:text-[10px] font-bold border ${STATUSES.find(s => s.value === (match.status || 'upcoming'))?.color}`}>
+                              {STATUSES.find(s => s.value === (match.status || 'upcoming'))?.label}
+                            </span>
                           </div>
-                          <div className="flex items-center gap-1 text-[8px] sm:text-[10px] text-gray-500 font-bold">
-                            <Clock className="h-3 w-3 text-matcha" />
-                            {match.time || 'TBA'}
-                          </div>
-                          <div className="text-[8px] sm:text-[10px] font-black text-matcha uppercase tracking-widest">
-                            {match.court}
-                          </div>
-                          <span className={`px-2 py-0.5 rounded text-[8px] sm:text-[10px] font-bold border ${STATUSES.find(s => s.value === (match.status || 'upcoming'))?.color}`}>
-                            {STATUSES.find(s => s.value === (match.status || 'upcoming'))?.label}
-                          </span>
-                        </div>
 
-                        <div className="flex items-center justify-between gap-2 sm:gap-4">
-                          {/* Team A */}
-                          <div className="flex-1 text-center space-y-1">
-                            <div className="w-10 h-10 sm:w-14 sm:h-14 bg-matcha/5 rounded-lg sm:rounded-xl flex items-center justify-center mx-auto group-hover:scale-110 transition-transform overflow-hidden p-1 sm:p-2 border border-matcha/10">
-                              {getTeamLogo(match.teamAId) ? (
-                                <img src={getTeamLogo(match.teamAId)} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-                              ) : (
-                                <span className="text-matcha font-black text-sm sm:text-xl">{getTeamName(match.teamAId).charAt(0)}</span>
-                              )}
+                          <div className="flex items-center justify-between gap-2 sm:gap-4">
+                            {/* Team A */}
+                            <div className="flex-1 text-center space-y-1">
+                              <div className="w-10 h-10 sm:w-14 sm:h-14 bg-matcha/5 rounded-lg sm:rounded-xl flex items-center justify-center mx-auto group-hover:scale-110 transition-transform overflow-hidden p-1 sm:p-2 border border-matcha/10">
+                                {getTeamLogo(match.teamAId) ? (
+                                  <img src={getTeamLogo(match.teamAId)} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                                ) : (
+                                  <span className="text-matcha font-black text-sm sm:text-xl">{getTeamName(match.teamAId).charAt(0)}</span>
+                                )}
+                              </div>
+                              <div className="font-bold text-gray-800 text-[9px] sm:text-[12px] leading-tight line-clamp-2 min-h-[24px] sm:min-h-[32px]">{getTeamName(match.teamAId)}</div>
+                              <div className="space-y-0.5 text-center h-6 sm:h-8 overflow-y-auto scrollbar-hide">
+                                {match.scorers?.filter(s => s.teamId === match.teamAId).map((s, idx) => (
+                                  <div key={idx} className="text-[6px] sm:text-[9px] text-gray-500 italic leading-none">{s.playerName} ({s.goals})</div>
+                                ))}
+                              </div>
                             </div>
-                            <div className="font-bold text-gray-800 text-[9px] sm:text-[12px] leading-tight line-clamp-2 min-h-[24px] sm:min-h-[32px]">{getTeamName(match.teamAId)}</div>
-                            <div className="space-y-0.5 text-center h-6 sm:h-8 overflow-y-auto scrollbar-hide">
-                              {match.scorers?.filter(s => s.teamId === match.teamAId).map((s, idx) => (
-                                <div key={idx} className="text-[6px] sm:text-[9px] text-gray-500 italic leading-none">{s.playerName} ({s.goals})</div>
-                              ))}
+                            
+                            {/* Score Column */}
+                            <div className="flex flex-col items-center flex-shrink-0 px-2">
+                              <div className="flex items-center gap-2 sm:gap-3 bg-matcha/5 px-3 sm:px-5 py-2 sm:py-3 rounded-xl sm:rounded-2xl border border-matcha/10">
+                                <span className="text-xl sm:text-3xl font-black text-matcha-dark">{match.scoreA}</span>
+                                <span className="text-gray-300 font-bold text-lg sm:text-2xl">:</span>
+                                <span className="text-xl sm:text-3xl font-black text-matcha-dark">{match.scoreB}</span>
+                              </div>
                             </div>
-                          </div>
-                          
-                          {/* Score Column */}
-                          <div className="flex flex-col items-center flex-shrink-0 px-2">
-                            <div className="flex items-center gap-2 sm:gap-3 bg-matcha/5 px-3 sm:px-5 py-2 sm:py-3 rounded-xl sm:rounded-2xl border border-matcha/10">
-                              <span className="text-xl sm:text-3xl font-black text-matcha-dark">{match.scoreA}</span>
-                              <span className="text-gray-300 font-bold text-lg sm:text-2xl">:</span>
-                              <span className="text-xl sm:text-3xl font-black text-matcha-dark">{match.scoreB}</span>
-                            </div>
-                          </div>
-    
-                          {/* Team B */}
-                          <div className="flex-1 text-center space-y-1">
-                            <div className="w-10 h-10 sm:w-14 sm:h-14 bg-pink-light/10 rounded-lg sm:rounded-xl flex items-center justify-center mx-auto group-hover:scale-110 transition-transform overflow-hidden p-1 sm:p-2 border border-pink-light/20">
-                              {getTeamLogo(match.teamBId) ? (
-                                <img src={getTeamLogo(match.teamBId)} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-                              ) : (
-                                <span className="text-pink-light font-black text-sm sm:text-xl">{getTeamName(match.teamBId).charAt(0)}</span>
-                              )}
-                            </div>
-                            <div className="font-bold text-gray-800 text-[9px] sm:text-[12px] leading-tight line-clamp-2 min-h-[24px] sm:min-h-[32px]">{getTeamName(match.teamBId)}</div>
-                            <div className="space-y-0.5 text-center h-6 sm:h-8 overflow-y-auto scrollbar-hide">
-                              {match.scorers?.filter(s => s.teamId === match.teamBId).map((s, idx) => (
-                                <div key={idx} className="text-[6px] sm:text-[9px] text-gray-500 italic leading-none">{s.playerName} ({s.goals})</div>
-                              ))}
+      
+                            {/* Team B */}
+                            <div className="flex-1 text-center space-y-1">
+                              <div className="w-10 h-10 sm:w-14 sm:h-14 bg-pink-light/10 rounded-lg sm:rounded-xl flex items-center justify-center mx-auto group-hover:scale-110 transition-transform overflow-hidden p-1 sm:p-2 border border-pink-light/20">
+                                {getTeamLogo(match.teamBId) ? (
+                                  <img src={getTeamLogo(match.teamBId)} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                                ) : (
+                                  <span className="text-pink-light font-black text-sm sm:text-xl">{getTeamName(match.teamBId).charAt(0)}</span>
+                                )}
+                              </div>
+                              <div className="font-bold text-gray-800 text-[9px] sm:text-[12px] leading-tight line-clamp-2 min-h-[24px] sm:min-h-[32px]">{getTeamName(match.teamBId)}</div>
+                              <div className="space-y-0.5 text-center h-6 sm:h-8 overflow-y-auto scrollbar-hide">
+                                {match.scorers?.filter(s => s.teamId === match.teamBId).map((s, idx) => (
+                                  <div key={idx} className="text-[6px] sm:text-[9px] text-gray-500 italic leading-none">{s.playerName} ({s.goals})</div>
+                                ))}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
           {filteredMatches.length === 0 && (
             <div className="bg-white p-12 rounded-2xl border border-pink-light text-center space-y-4">
               <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto">
